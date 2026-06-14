@@ -1,0 +1,14 @@
+dvc
+mlflow
+ultralytics
+fastapi
+uvicorn
+streamlit
+evidently
+pandas
+numpy
+opencv-python
+pytest
+black
+flake8
+python-dotenv
