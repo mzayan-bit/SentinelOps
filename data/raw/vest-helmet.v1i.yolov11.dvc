@@ -1,0 +1,6 @@
+outs:
+- md5: 1a77ad6b20c8817cebbd0f834c49dd62.dir
+  size: 494926144
+  nfiles: 19055
+  hash: md5
+  path: vest-helmet.v1i.yolov11
