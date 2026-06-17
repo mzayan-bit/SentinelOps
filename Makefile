@@ -17,5 +17,4 @@ dashboard:
 	streamlit run dashboard/experiment_compare.py
 
 api:
-	@echo "API not yet implemented."
-	# uvicorn src.main:app --reload
+	uvicorn inference.api.main:app --host 0.0.0.0 --port 8000 --reload
