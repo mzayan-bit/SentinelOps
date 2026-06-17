@@ -1,0 +1,67 @@
+"""
+SentinelOps — Alert Management API (standalone application)
+=============================================================
+FastAPI application that serves the Alert Management REST API.
+
+Run::
+
+    uvicorn app.api.app:app --host 0.0.0.0 --port 8001 --reload
+"""
+
+from __future__ import annotations
+
+import logging
+import time
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+from app.api.alert_routes import router as alert_router
+
+# ---------------------------------------------------------------------------
+# Logging
+# ---------------------------------------------------------------------------
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+logger = logging.getLogger("sentinelops.alert_app")
+
+_start_time: float = 0.0
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global _start_time
+    _start_time = time.time()
+    logger.info("SentinelOps Alert Management API starting …")
+    yield
+    logger.info("SentinelOps Alert Management API shutting down.")
+
+
+app = FastAPI(
+    title="SentinelOps Alert Management API",
+    description="Production-grade alert lifecycle management for security & safety monitoring.",
+    version="1.0.0",
+    docs_url="/docs",
+    redoc_url="/redoc",
+    lifespan=lifespan,
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(alert_router)
+
+
+@app.get("/health", tags=["System"])
+async def health():
+    uptime = time.time() - _start_time if _start_time else 0
+    return {"status": "healthy", "uptime_seconds": round(uptime, 2)}
