@@ -1,0 +1,64 @@
+project_name: SentinelOps
+preset: medium
+model:
+  architecture: yolo11s.pt
+  num_classes: 2
+  input_size: 640
+  class_names:
+  - reflective_jacket
+  - safety_helmet
+training:
+  epochs: 100
+  batch_size: 16
+  learning_rate: 0.01
+  optimizer: auto
+  patience: 50
+  save_period: -1
+  device: auto
+  workers: 8
+  seed: 42
+  resume: false
+  pretrained: true
+augmentation:
+  hsv_h: 0.015
+  hsv_s: 0.7
+  hsv_v: 0.4
+  degrees: 0.0
+  translate: 0.1
+  scale: 0.5
+  shear: 0.0
+  flipud: 0.0
+  fliplr: 0.5
+  mosaic: 1.0
+  mixup: 0.1
+  copy_paste: 0.0
+dataset:
+  root: data
+  yaml_path: data/data.yaml
+  dvc_remote: localremote
+  version: v1
+  train_split: train
+  val_split: valid
+  test_split: test
+mlflow:
+  enabled: true
+  tracking_uri: http://localhost:5000
+  experiment_name: sentinelops-detection
+  run_name: null
+  log_artifacts: true
+  registry_name: sentinelops-yolo
+dvc:
+  enabled: true
+  remote: localremote
+  auto_push: false
+logging:
+  level: INFO
+  log_dir: logs
+  console: true
+  file: true
+  format: '%(asctime)s | %(levelname)-8s | %(name)s | %(message)s'
+output:
+  project_dir: runs/detect
+  run_name: train
+  save_dir: models
+  artifacts_dir: artifacts
