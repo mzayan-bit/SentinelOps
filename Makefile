@@ -14,8 +14,7 @@ lint:
 	flake8 src tests
 
 dashboard:
-	@echo "Dashboard not yet implemented."
-	# streamlit run src/app.py
+	streamlit run dashboard/experiment_compare.py
 
 api:
 	@echo "API not yet implemented."
