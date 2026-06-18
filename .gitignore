@@ -5,3 +5,4 @@ mlruns
 models
 artifacts
 .DS_Store
+*.pt
