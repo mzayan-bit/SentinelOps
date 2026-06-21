@@ -1,11 +1,29 @@
-.venv
-__pycache__
+# ── Virtual environment & caches ──
+.venv/
+__pycache__/
 *.pyc
-mlruns
-models
-artifacts
+.pytest_cache/
 .DS_Store
+
+# ── MLOps artifacts (large / generated) ──
+mlruns/
+runs/
+wandb/
+artifacts/
+
+# ── Model weights (tracked via DVC or manual download) ──
 *.pt
+!models/ppe_detector/best.pt
+
+# ── Training temporaries ──
+results.csv
+last.pt
+args.yaml
+
+# ── Media (keep out of git) ──
 *.mp4
 test_assets/
 output_*.mp4
+
+# ── Temp folders ──
+abc/

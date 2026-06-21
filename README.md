@@ -1,9 +1,15 @@
 # SentinelOps
 
+> Production-grade MLOps pipeline for PPE (Personal Protective Equipment) detection using YOLO object detection.
+
+---
+
 ## Problem Statement
+
 SentinelOps aims to provide a robust, scalable, and automated MLOps pipeline for computer vision models. Moving from isolated Jupyter notebooks to a structured, reproducible environment is crucial for bringing AI models reliably into production.
 
 ## Architecture Diagram
+
 ```mermaid
 graph TD
     A[Raw Data] -->|DVC| B[Versioned Dataset]
@@ -14,38 +20,155 @@ graph TD
 ```
 
 ## Tech Stack
-- **Data Versioning**: DVC
-- **Experiment Tracking**: MLflow
-- **Modeling**: Ultralytics (YOLO)
-- **API**: FastAPI, Uvicorn
-- **Dashboard UI**: Streamlit
-- **Monitoring**: Evidently
-- **Testing & Formatting**: Pytest, Black, Flake8
 
-## Project Roadmap
-- **Phase 0**: Project Foundation (Setup, Environments, Boilerplate)
-- **Phase 1**: Dataset Versioning & Preparation
-- **Phase 2**: Model Training & Experiment Tracking
-- **Phase 3**: Inference API (FastAPI)
-- **Phase 4**: Monitoring Dashboard (Streamlit & Evidently)
-- **Phase 5**: CI/CD and Cloud Deployment
+| Layer | Technology |
+|-------|-----------|
+| **Data Versioning** | DVC |
+| **Experiment Tracking** | MLflow + DagsHub |
+| **Modeling** | Ultralytics YOLO11 |
+| **Inference API** | FastAPI, Uvicorn |
+| **Dashboard** | Streamlit |
+| **Monitoring** | Evidently |
+| **Testing & Formatting** | Pytest, Black, Flake8 |
 
-## Repository Structure
-```text
-.
-├── docs/               # Project documentation
-├── scripts/            # Bash and setup scripts
-├── src/                # Main source code (API, Training, Utils)
-├── tests/              # Unit and integration tests
-├── .env.example        # Environment variable template
-├── .gitignore          # Git ignore file
-├── Makefile            # Automation commands
-├── README.md           # Project overview
-└── requirements.txt    # Python dependencies
+---
+
+## PPE Detection Model
+
+**Model:** YOLO11s (Fine-Tuned)
+
+**Classes:**
+- 🦺 Reflective Jacket
+- ⛑️ Safety Helmet
+
+**Dataset:**
+- **4,864** labeled instances
+- **1,427** validation images
+
+### Performance
+
+| Metric | Value |
+|--------|-------|
+| Precision | **93.3%** |
+| Recall | **91.4%** |
+| mAP50 | **96.4%** |
+| mAP50-95 | **77.9%** |
+
+> The model achieves near-production accuracy with a precision–recall balance above 90%, making it suitable for real-time safety monitoring.
+
+---
+
+## Training Artifacts
+
+### Training Curves
+
+![Training Results](docs/training/results.png)
+
+### Precision–Recall & F1
+
+| Precision–Recall Curve | F1 Curve |
+|:---:|:---:|
+| ![BoxPR Curve](docs/training/BoxPR_curve.png) | ![BoxF1 Curve](docs/training/BoxF1_curve.png) |
+
+### Precision Curve
+
+![BoxP Curve](docs/training/BoxP_curve.png)
+
+### Confusion Matrices
+
+| Standard | Normalised |
+|:---:|:---:|
+| ![Confusion Matrix](docs/training/confusion_matrix.png) | ![Normalised Confusion Matrix](docs/training/confusion_matrix_normalized.png) |
+
+### Label Distribution
+
+![Labels](docs/training/labels.jpg)
+
+> 📖 For detailed explanations of each chart, see [docs/training/README.md](docs/training/README.md).
+
+---
+
+## Training Summary
+
+| Parameter | Value |
+|-----------|-------|
+| Architecture | YOLO11s |
+| Framework | Ultralytics |
+| Tracking | MLflow + DagsHub |
+| Training Time | 2.44 hours |
+| GPU | NVIDIA Tesla T4 |
+| Input Size | 640×640 |
+| Epochs | 50 |
+
+---
+
+## Model Weights
+
+The `models/ppe_detector/best.pt` file contains the best-performing checkpoint selected by validation mAP during training. It can be loaded directly with the Ultralytics library:
+
+```python
+from ultralytics import YOLO
+
+model = YOLO("models/ppe_detector/best.pt")
 ```
 
+---
+
+## Example Inference
+
+```python
+from ultralytics import YOLO
+
+model = YOLO("models/ppe_detector/best.pt")
+
+results = model.predict(
+    source="video.mp4",
+    conf=0.25,
+    show=True,
+    save=True
+)
+```
+
+---
+
+## Repository Structure
+
+```text
+.
+├── app/                # Alert management system (API + service)
+├── config/             # Centralised settings
+├── dashboard/          # Streamlit dashboards
+├── docs/               # Documentation & training artifacts
+│   └── training/       # Evaluation curves & confusion matrices
+├── inference/          # Model loader, predictor, tracker, compliance
+│   └── api/            # FastAPI inference service
+├── models/
+│   └── ppe_detector/   # Production model weights
+├── monitoring/         # Data drift monitoring
+├── schemas/            # Typed data schemas
+├── scripts/            # Utility scripts
+├── src/                # Dataset validation, model registry
+├── tests/              # Unit & structural tests
+├── training/           # Training configs & presets
+├── utils/              # Logger, image validator
+├── .gitignore
+├── Makefile
+├── README.md
+└── requirements.txt
+```
+
+## Project Roadmap
+
+- [x] **Phase 0**: Project Foundation (Setup, Environments, Boilerplate)
+- [x] **Phase 1**: Dataset Versioning & Preparation
+- [x] **Phase 2**: Model Training & Experiment Tracking
+- [x] **Phase 3**: Inference API (FastAPI)
+- [ ] **Phase 4**: Monitoring Dashboard (Streamlit & Evidently)
+- [ ] **Phase 5**: CI/CD and Cloud Deployment
+
 ## Future Improvements
-- Cloud integration (AWS S3/GCP Cloud Storage) for DVC remotes.
+
+- Cloud integration (AWS S3 / GCP Cloud Storage) for DVC remotes.
 - Automated CI/CD pipelines with GitHub Actions.
 - Dockerization of the inference and dashboard services.
-- Advanced monitoring alerts.
+- Advanced monitoring alerts and drift-triggered retraining.
