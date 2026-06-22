@@ -1,7 +1,8 @@
 import uuid
-from typing import List
+from typing import List, Dict
 from fastapi import APIRouter, HTTPException, status
 from app.services.camera_manager import CameraManager
+from app.services.health_monitor import health_monitor, CameraHealth
 from schemas.camera import CameraCreate, CameraResponse
 
 router = APIRouter(prefix="/api/cameras", tags=["Cameras"])
@@ -22,6 +23,11 @@ def list_cameras():
         ) for c in cameras
     ]
 
+@router.get("/health/all", response_model=Dict[str, CameraHealth], summary="Get health of all cameras")
+def get_all_health():
+    """Returns the real-time telemetry and health data for all monitored streams."""
+    return health_monitor.get_all_health()
+
 @router.post("", response_model=CameraResponse, status_code=status.HTTP_201_CREATED, summary="Register a new camera")
 def add_camera(camera_in: CameraCreate):
     """Registers a new video source and assigns it a UUID."""
@@ -40,6 +46,14 @@ def add_camera(camera_in: CameraCreate):
         status=new_cam.status.value
     )
 
+@router.get("/{camera_id}/health", response_model=CameraHealth, summary="Get camera health metrics")
+def get_camera_health(camera_id: str):
+    """Retrieves latency, FPS, and status for a specific camera."""
+    health = health_monitor.get_health(camera_id)
+    if not health:
+        raise HTTPException(status_code=404, detail="Health data not found for this camera.")
+    return health
+
 @router.delete("/{camera_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Remove a camera")
 def remove_camera(camera_id: uuid.UUID):
     """Stops and removes the specified camera from the manager."""
@@ -52,6 +66,8 @@ def start_camera(camera_id: uuid.UUID):
     """Starts the video processing pipeline for the given camera."""
     try:
         camera_manager.start_camera(camera_id)
+        # Initialize tracking as offline initially till frames flow
+        health_monitor.record_offline(str(camera_id))
         return {"status": "success", "message": f"Camera {camera_id} started."}
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -61,6 +77,7 @@ def stop_camera(camera_id: uuid.UUID):
     """Stops the video processing pipeline for the given camera."""
     try:
         camera_manager.stop_camera(camera_id)
+        health_monitor.record_offline(str(camera_id))
         return {"status": "success", "message": f"Camera {camera_id} stopped."}
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
