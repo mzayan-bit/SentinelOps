@@ -1,11 +1,18 @@
 import type { Metadata } from "next";
-import { LayoutDashboard } from "lucide-react";
-import { PageHeader, PlaceholderCard } from "@/components/ui";
+import { LayoutDashboard, Camera, ShieldAlert, Activity, CheckCircle2 } from "lucide-react";
+import { PageHeader, PlaceholderCard, KpiCard } from "@/components/ui";
 
 export const metadata: Metadata = {
   title: "Dashboard",
   description: "System overview, KPIs, and operational metrics for SentinelOps.",
 };
+
+const mockKpis = [
+  { label: "Active Cameras", value: "24", change: "All online", positive: true, icon: Camera, statusDot: "online" as const },
+  { label: "Today's Violations", value: "12", change: "-3 since yesterday", positive: true, icon: ShieldAlert, statusDot: "warning" as const },
+  { label: "Compliance Rate", value: "98.5%", change: "+0.2%", positive: true, icon: Activity },
+  { label: "System Health", value: "Optimal", change: "99.9% uptime", positive: true, icon: CheckCircle2, statusDot: "online" as const },
+];
 
 export default function DashboardPage() {
   return (
@@ -19,33 +26,9 @@ export default function DashboardPage() {
       />
 
       {/* KPI row */}
-      <div className="animate-fade-in stagger-1 mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {[
-          { label: "Total Detections", value: "—", change: "+0%", positive: true },
-          { label: "Active Zones", value: "—", change: "0", positive: true },
-          { label: "Compliance Rate", value: "—", change: "+0%", positive: true },
-          { label: "Alerts Pending", value: "—", change: "0", positive: false },
-        ].map((kpi) => (
-          <div
-            key={kpi.label}
-            className="rounded-xl border border-border bg-surface p-4"
-          >
-            <span className="text-[11px] font-medium uppercase tracking-wider text-muted">
-              {kpi.label}
-            </span>
-            <div className="mt-2 flex items-end justify-between">
-              <span className="text-2xl font-bold text-foreground font-mono">
-                {kpi.value}
-              </span>
-              <span
-                className={`text-xs font-medium ${
-                  kpi.positive ? "text-success" : "text-danger"
-                }`}
-              >
-                {kpi.change}
-              </span>
-            </div>
-          </div>
+      <div className="animate-fade-in stagger-1 mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {mockKpis.map((kpi) => (
+          <KpiCard key={kpi.label} {...kpi} />
         ))}
       </div>
 

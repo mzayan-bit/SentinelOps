@@ -1,11 +1,20 @@
 import type { Metadata } from "next";
 import { Radio } from "lucide-react";
-import { PageHeader, PlaceholderCard } from "@/components/ui";
+import { PageHeader, CameraTile } from "@/components/ui";
 
 export const metadata: Metadata = {
   title: "Live Feed",
   description: "Real-time camera feeds and detection monitoring.",
 };
+
+const mockCameras = [
+  { id: "CAM-001", name: "Main Entrance", status: "online", fps: 30, lastDetection: "2s ago" },
+  { id: "CAM-002", name: "Assembly Line A", status: "online", fps: 24, lastDetection: "Just now" },
+  { id: "CAM-003", name: "Loading Dock", status: "standby", fps: 0, lastDetection: "10m ago" },
+  { id: "CAM-004", name: "Warehouse B", status: "online", fps: 30, lastDetection: "1m ago" },
+  { id: "CAM-005", name: "Lab Area", status: "offline", fps: 0, lastDetection: "2h ago" },
+  { id: "CAM-006", name: "Perimeter East", status: "online", fps: 15, lastDetection: "5s ago" },
+] as const;
 
 export default function LivePage() {
   return (
@@ -20,22 +29,9 @@ export default function LivePage() {
 
       {/* Camera grid */}
       <div className="animate-fade-in stagger-1 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        {["Camera 01 — Main Entrance", "Camera 02 — Assembly Line A", "Camera 03 — Loading Dock", "Camera 04 — Warehouse B", "Camera 05 — Lab Area", "Camera 06 — Perimeter East"].map(
-          (cam, i) => (
-            <PlaceholderCard key={i} title={cam} description="No feed connected">
-              <div className="relative flex aspect-video items-center justify-center rounded-lg border border-dashed border-border bg-background">
-                <div className="flex flex-col items-center gap-2">
-                  <Radio className="h-6 w-6 text-muted" />
-                  <span className="text-xs text-muted">Feed offline</span>
-                </div>
-                <div className="absolute bottom-2 right-2 flex items-center gap-1.5 rounded-full bg-surface px-2 py-0.5">
-                  <span className="status-dot status-dot--warning" />
-                  <span className="text-[10px] font-medium text-muted">Standby</span>
-                </div>
-              </div>
-            </PlaceholderCard>
-          )
-        )}
+        {mockCameras.map((cam) => (
+          <CameraTile key={cam.id} {...cam} />
+        ))}
       </div>
     </div>
   );
