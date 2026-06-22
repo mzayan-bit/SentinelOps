@@ -19,6 +19,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.alert_routes import router as alert_router
 from app.api.camera_routes import router as camera_router
+from app.api.stream_routes import router as stream_router
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -61,6 +62,7 @@ app.add_middleware(
 
 app.include_router(alert_router)
 app.include_router(camera_router)
+app.include_router(stream_router)
 
 
 @app.get("/health", tags=["System"])
