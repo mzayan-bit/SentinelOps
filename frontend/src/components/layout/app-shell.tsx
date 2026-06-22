@@ -9,22 +9,18 @@ interface AppShellProps {
 }
 
 export function AppShell({ children }: AppShellProps) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
 
   const handleToggle = useCallback(() => {
-    setSidebarOpen((prev) => !prev);
-  }, []);
-
-  const handleClose = useCallback(() => {
-    setSidebarOpen(false);
+    setCollapsed((prev) => !prev);
   }, []);
 
   return (
     <div className="flex h-screen overflow-hidden">
-      <Sidebar isOpen={sidebarOpen} onClose={handleClose} />
+      <Sidebar collapsed={collapsed} onToggle={handleToggle} />
       <div className="flex flex-1 flex-col overflow-hidden">
         <Topbar onMenuToggle={handleToggle} />
-        <main className="flex-1 overflow-y-auto p-4 lg:p-6">
+        <main className="flex-1 overflow-y-auto p-6">
           {children}
         </main>
       </div>
