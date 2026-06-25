@@ -131,6 +131,33 @@ results = model.predict(
 
 ---
 
+## Docker Deployment
+
+SentinelOps includes a production-ready multi-stage Dockerfile that runs the API as a non-root user.
+
+### Build the Image
+
+```bash
+docker build -t sentinelops:latest .
+```
+
+### Run the Container
+
+```bash
+docker run -d \
+  --name sentinelops \
+  -p 8000:8000 \
+  -e HOST=0.0.0.0 \
+  -e PORT=8000 \
+  -v $(pwd)/artifacts:/app/artifacts \
+  -v $(pwd)/config:/app/config \
+  sentinelops:latest
+```
+
+This maps port 8000, provides required environment variables, and mounts the `artifacts` and `config` directories so persistent data is retained outside the container.
+
+---
+
 ## Repository Structure
 
 ```text
@@ -170,5 +197,5 @@ results = model.predict(
 
 - Cloud integration (AWS S3 / GCP Cloud Storage) for DVC remotes.
 - Automated CI/CD pipelines with GitHub Actions.
-- Dockerization of the inference and dashboard services.
+- [x] Dockerization of the inference and dashboard services.
 - Advanced monitoring alerts and drift-triggered retraining.
