@@ -1,0 +1,19 @@
+{
+  "users": [
+    {
+      "username": "admin",
+      "role": "admin",
+      "api_key": "sentinelops-admin-key"
+    },
+    {
+      "username": "supervisor",
+      "role": "supervisor",
+      "api_key": "sentinelops-supervisor-key"
+    },
+    {
+      "username": "viewer",
+      "role": "viewer",
+      "api_key": "sentinelops-viewer-key"
+    }
+  ]
+}

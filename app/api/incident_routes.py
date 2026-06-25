@@ -1,12 +1,13 @@
-from fastapi import APIRouter, Query, status
+from fastapi import APIRouter, Depends, Query, status
 from typing import List, Optional
+from app.auth import Role, User, require_role
 from schemas.incident import IncidentCreate, IncidentResponse, SeverityLevel
 from app.services.incident_service import incident_service
 
 router = APIRouter(prefix="/api/incidents", tags=["Incidents"])
 
 @router.post("", response_model=IncidentResponse, status_code=status.HTTP_201_CREATED, summary="Log a new violation incident")
-def create_incident(incident_in: IncidentCreate):
+def create_incident(incident_in: IncidentCreate, user: User = Depends(require_role(Role.SUPERVISOR))):
     """
     Logs a new violation event to the timeline. 
     Typically called by the model inference pipeline upon detecting a PPE violation.
@@ -19,7 +20,8 @@ def get_incidents(
     severity: Optional[SeverityLevel] = Query(None, description="Filter by severity level"),
     start_time: Optional[float] = Query(None, description="Start timestamp filter"),
     end_time: Optional[float] = Query(None, description="End timestamp filter"),
-    limit: int = Query(100, description="Max number of incidents to return")
+    limit: int = Query(100, description="Max number of incidents to return"),
+    user: User = Depends(require_role(Role.VIEWER))
 ):
     """
     Retrieves the incident timeline. Supports filtering by camera, severity, and timestamp ranges.

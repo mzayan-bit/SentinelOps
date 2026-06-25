@@ -18,8 +18,10 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
+
+from app.auth import Role, User, require_role
 
 from app.models.report import ReportFormat, ReportMetadata, ReportRequest
 from app.services.alert_service import AlertService
@@ -62,7 +64,7 @@ _CONTENT_TYPES: dict[ReportFormat, str] = {
     status_code=201,
     summary="Generate a new report",
 )
-async def generate_report(request: ReportRequest):
+async def generate_report(request: ReportRequest, user: User = Depends(require_role(Role.SUPERVISOR))):
     """Generate a violation report in the specified format."""
     try:
         meta = _report_service.generate(request)
@@ -77,7 +79,7 @@ async def generate_report(request: ReportRequest):
     response_model=list[ReportMetadata],
     summary="List all generated reports",
 )
-async def list_reports():
+async def list_reports(user: User = Depends(require_role(Role.VIEWER))):
     """Return metadata for all previously generated reports."""
     return _report_service.list_reports()
 
@@ -86,7 +88,7 @@ async def list_reports():
     "/{report_id}/download",
     summary="Download a report file",
 )
-async def download_report(report_id: str):
+async def download_report(report_id: str, user: User = Depends(require_role(Role.VIEWER))):
     """Download a generated report file by its ID."""
     try:
         path = _report_service.get_report_path(report_id)

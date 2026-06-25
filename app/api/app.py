@@ -24,6 +24,7 @@ from app.api.incident_routes import router as incident_router
 from app.api.snapshot_routes import router as snapshot_router
 from app.api.analytics_routes import router as analytics_router
 from app.api.report_routes import router as report_router
+from app.auth import set_auth_enabled
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -42,6 +43,12 @@ _start_time: float = 0.0
 async def lifespan(app: FastAPI):
     global _start_time
     _start_time = time.time()
+    
+    # Enable API key authentication in production/runtime (skip if testing)
+    import os
+    if not os.getenv("TESTING"):
+        set_auth_enabled(True)
+    
     logger.info("SentinelOps Alert Management API starting …")
     yield
     logger.info("SentinelOps Alert Management API shutting down.")
