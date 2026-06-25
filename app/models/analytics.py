@@ -1,0 +1,113 @@
+"""
+SentinelOps — Analytics Response Models
+==========================================
+Pydantic schemas for the Analytics API responses.
+
+Each metric endpoint has its own response model, plus a combined
+``AnalyticsSummaryResponse`` for the dashboard summary endpoint.
+"""
+
+from __future__ import annotations
+
+from pydantic import BaseModel, Field
+
+
+# ---------------------------------------------------------------------------
+# Violations per day
+# ---------------------------------------------------------------------------
+class ViolationsPerDay(BaseModel):
+    """Single day bucket."""
+
+    date: str = Field(..., description="Date in YYYY-MM-DD format.")
+    count: int = Field(..., ge=0, description="Number of violations on this date.")
+
+
+class ViolationsPerDayResponse(BaseModel):
+    """Response for /analytics/violations-per-day."""
+
+    data: list[ViolationsPerDay] = Field(default_factory=list)
+    total: int = Field(..., ge=0, description="Sum of all daily counts.")
+
+
+# ---------------------------------------------------------------------------
+# Violations per camera
+# ---------------------------------------------------------------------------
+class ViolationsPerCamera(BaseModel):
+    """Single camera bucket."""
+
+    camera_id: str = Field(..., description="Camera identifier.")
+    count: int = Field(..., ge=0, description="Number of violations from this camera.")
+
+
+class ViolationsPerCameraResponse(BaseModel):
+    """Response for /analytics/violations-per-camera."""
+
+    data: list[ViolationsPerCamera] = Field(default_factory=list)
+    total_cameras: int = Field(..., ge=0, description="Number of distinct cameras.")
+
+
+# ---------------------------------------------------------------------------
+# PPE compliance rate
+# ---------------------------------------------------------------------------
+class ComplianceRateResponse(BaseModel):
+    """Response for /analytics/compliance-rate."""
+
+    total_checks: int = Field(..., ge=0, description="Total alerts considered.")
+    compliant: int = Field(..., ge=0, description="Alerts that are NOT PPE violations.")
+    non_compliant: int = Field(..., ge=0, description="Alerts that ARE PPE violations (No Helmet / No Vest).")
+    compliance_rate: float = Field(
+        ...,
+        ge=0.0,
+        le=1.0,
+        description="Ratio of compliant to total (1.0 = fully compliant).",
+    )
+
+
+# ---------------------------------------------------------------------------
+# Hourly trends
+# ---------------------------------------------------------------------------
+class HourlyTrend(BaseModel):
+    """Single hour-of-day bucket."""
+
+    hour: int = Field(..., ge=0, le=23, description="Hour of day (0–23).")
+    count: int = Field(..., ge=0, description="Number of violations in this hour.")
+
+
+class HourlyTrendsResponse(BaseModel):
+    """Response for /analytics/hourly-trends."""
+
+    data: list[HourlyTrend] = Field(default_factory=list, description="24-entry list, one per hour.")
+    date: str | None = Field(
+        default=None,
+        description="Specific date if filtered, otherwise None for all dates.",
+    )
+
+
+# ---------------------------------------------------------------------------
+# Top violation types
+# ---------------------------------------------------------------------------
+class ViolationTypeCount(BaseModel):
+    """Single violation-type bucket."""
+
+    violation_type: str = Field(..., description="Alert type label.")
+    count: int = Field(..., ge=0, description="Number of violations of this type.")
+
+
+class TopViolationTypesResponse(BaseModel):
+    """Response for /analytics/top-violation-types."""
+
+    data: list[ViolationTypeCount] = Field(default_factory=list)
+    total: int = Field(..., ge=0, description="Sum of all type counts.")
+
+
+# ---------------------------------------------------------------------------
+# Combined summary
+# ---------------------------------------------------------------------------
+class AnalyticsSummaryResponse(BaseModel):
+    """Combined analytics payload for /analytics/summary."""
+
+    violations_per_day: ViolationsPerDayResponse
+    violations_per_camera: ViolationsPerCameraResponse
+    compliance_rate: ComplianceRateResponse
+    hourly_trends: HourlyTrendsResponse
+    top_violation_types: TopViolationTypesResponse
