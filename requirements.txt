@@ -16,3 +16,5 @@ rich
 tqdm
 openpyxl
 fpdf2
+psutil
+GPUtil
