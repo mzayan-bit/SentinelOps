@@ -14,3 +14,5 @@ flake8
 python-dotenv
 rich
 tqdm
+openpyxl
+fpdf2

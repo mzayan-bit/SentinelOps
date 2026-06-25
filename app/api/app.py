@@ -23,6 +23,7 @@ from app.api.stream_routes import router as stream_router
 from app.api.incident_routes import router as incident_router
 from app.api.snapshot_routes import router as snapshot_router
 from app.api.analytics_routes import router as analytics_router
+from app.api.report_routes import router as report_router
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -69,6 +70,7 @@ app.include_router(stream_router)
 app.include_router(incident_router)
 app.include_router(snapshot_router)
 app.include_router(analytics_router)
+app.include_router(report_router)
 
 
 @app.get("/health", tags=["System"])
