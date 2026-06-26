@@ -101,12 +101,10 @@ async def test_camera_default_status(async_session: AsyncSession):
 # Violation Model Tests
 # ---------------------------------------------------------------------------
 @pytest.mark.asyncio
-async def test_violation_create_with_camera_fk(
-    async_session: AsyncSession, sample_camera: CameraModel
-):
+async def test_violation_create_and_read(async_session: AsyncSession):
     viol = ViolationModel(
         id="ALR-20260626-abc123",
-        camera_id=sample_camera.id,
+        camera_id="cam01",
         alert_type="No Helmet",
         severity="High",
         confidence=0.92,
@@ -119,16 +117,14 @@ async def test_violation_create_with_camera_fk(
     result = await async_session.get(ViolationModel, "ALR-20260626-abc123")
     assert result is not None
     assert result.alert_type == "No Helmet"
-    assert result.camera_id == sample_camera.id
+    assert result.camera_id == "cam01"
 
 
 @pytest.mark.asyncio
-async def test_violation_optional_fields(
-    async_session: AsyncSession, sample_camera: CameraModel
-):
+async def test_violation_optional_fields(async_session: AsyncSession):
     viol = ViolationModel(
         id="ALR-20260626-opt01",
-        camera_id=sample_camera.id,
+        camera_id="cam02",
         alert_type="No Vest",
         severity="Medium",
         confidence=0.75,
@@ -235,36 +231,34 @@ async def test_report_defaults(async_session: AsyncSession):
 # Relationship Tests
 # ---------------------------------------------------------------------------
 @pytest.mark.asyncio
-async def test_camera_has_violations_relationship(
-    async_session: AsyncSession, sample_camera: CameraModel
+async def test_violation_query_by_camera(
+    async_session: AsyncSession,
 ):
-    viol = ViolationModel(
-        id="ALR-REL-001",
-        camera_id=sample_camera.id,
-        alert_type="Loitering",
-        severity="Low",
-        confidence=0.6,
-        status="New",
-        timestamp=datetime.now(timezone.utc),
-    )
-    async_session.add(viol)
+    """Violations can be queried by camera_id string."""
+    for i in range(3):
+        viol = ViolationModel(
+            id=f"ALR-QUERY-{i:03d}",
+            camera_id="cam-query-test",
+            alert_type="No Helmet",
+            severity="High",
+            confidence=0.85,
+            status="New",
+            timestamp=datetime.now(timezone.utc),
+        )
+        async_session.add(viol)
     await async_session.commit()
 
-    # Re-fetch camera with relationship loaded
-    stmt = select(CameraModel).where(CameraModel.id == sample_camera.id)
+    stmt = select(ViolationModel).where(ViolationModel.camera_id == "cam-query-test")
     result = await async_session.execute(stmt)
-    cam = result.scalar_one()
-
-    await async_session.refresh(cam, ["violations"])
-    assert len(cam.violations) == 1
-    assert cam.violations[0].id == "ALR-REL-001"
+    rows = result.scalars().all()
+    assert len(rows) == 3
 
 
 @pytest.mark.asyncio
 async def test_camera_cascade_delete(
     async_session: AsyncSession,
 ):
-    """Deleting a camera should cascade-delete its violations, incidents, snapshots."""
+    """Deleting a camera should cascade-delete its incidents and snapshots."""
     cam = CameraModel(
         id=uuid.uuid4(),
         source="rtsp://test/cascade",
@@ -273,15 +267,6 @@ async def test_camera_cascade_delete(
     async_session.add(cam)
     await async_session.flush()
 
-    viol = ViolationModel(
-        id="ALR-CASCADE-001",
-        camera_id=cam.id,
-        alert_type="No Helmet",
-        severity="High",
-        confidence=0.9,
-        status="New",
-        timestamp=datetime.now(timezone.utc),
-    )
     inc = IncidentModel(
         camera_id=cam.id,
         severity="HIGH",
@@ -293,7 +278,7 @@ async def test_camera_cascade_delete(
         relative_path="test/cascade.jpg",
         timestamp=1719420000.0,
     )
-    async_session.add_all([viol, inc, snap])
+    async_session.add_all([inc, snap])
     await async_session.commit()
 
     # Delete the camera
@@ -301,6 +286,5 @@ async def test_camera_cascade_delete(
     await async_session.commit()
 
     # Verify cascaded deletes
-    assert await async_session.get(ViolationModel, "ALR-CASCADE-001") is None
     assert await async_session.get(IncidentModel, inc.id) is None
     assert await async_session.get(SnapshotModel, snap.id) is None

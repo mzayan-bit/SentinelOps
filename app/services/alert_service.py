@@ -147,6 +147,24 @@ class AlertService:
             alert.severity.value,
             alert.camera_id,
         )
+
+        # Fire-and-forget: persist to PostgreSQL in the background
+        from app.services.violation_persistence import persist_violation_async
+
+        persist_violation_async(
+            alert_id=alert.alert_id,
+            camera_id=alert.camera_id,
+            alert_type=alert.alert_type.value,
+            severity=alert.severity.value,
+            confidence=alert.confidence,
+            status=alert.status.value,
+            timestamp=alert.timestamp,
+            image_path=alert.image_path,
+            video_clip_path=alert.video_clip_path,
+            notes=alert.notes,
+            assigned_to=alert.assigned_to,
+        )
+
         return alert
 
     def get(self, alert_id: str) -> Alert:

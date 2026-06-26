@@ -46,9 +46,6 @@ class CameraModel(Base):
     )
 
     # Relationships
-    violations: Mapped[list["ViolationModel"]] = relationship(
-        back_populates="camera", cascade="all, delete-orphan"
-    )
     incidents: Mapped[list["IncidentModel"]] = relationship(
         back_populates="camera", cascade="all, delete-orphan"
     )
@@ -69,9 +66,7 @@ class ViolationModel(Base):
     __tablename__ = "violations"
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
-    camera_id: Mapped[uuid.UUID] = mapped_column(
-        PGUUID(as_uuid=True), ForeignKey("cameras.id"), nullable=False
-    )
+    camera_id: Mapped[str] = mapped_column(String(128), nullable=False)
     alert_type: Mapped[str] = mapped_column(String(64), nullable=False)
     severity: Mapped[str] = mapped_column(String(16), nullable=False)
     confidence: Mapped[float] = mapped_column(Float, nullable=False)
@@ -86,9 +81,6 @@ class ViolationModel(Base):
     resolved_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
-
-    # Relationships
-    camera: Mapped["CameraModel"] = relationship(back_populates="violations")
 
     def __repr__(self) -> str:
         return f"<Violation {self.id} [{self.alert_type}]>"
