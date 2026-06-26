@@ -14,6 +14,7 @@ from app.auth import Role, User, require_role
 from app.models.metrics import PlatformMetricsResponse
 from app.services.camera_manager import CameraManager
 from app.services.health_monitor import health_monitor
+from app.services.cache_service import cached
 from app.services.metrics_service import MetricsService
 
 logger = logging.getLogger("sentinelops.metrics_api")
@@ -31,6 +32,7 @@ router = APIRouter(prefix="/api/metrics", tags=["System"])
     response_model=PlatformMetricsResponse,
     summary="Get platform snapshot metrics",
 )
+@cached(prefix="metrics:", ttl_seconds=5)
 async def get_platform_metrics(user: User = Depends(require_role(Role.VIEWER))):
     """Retrieve real-time hardware utilization and application telemetry snapshot."""
     return _metrics_service.get_snapshot()

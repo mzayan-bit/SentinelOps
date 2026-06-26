@@ -36,6 +36,7 @@ from app.models.analytics import (
 )
 from app.services.alert_service import AlertService
 from app.services.analytics_service import AnalyticsService
+from app.services.cache_service import cached
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -62,6 +63,7 @@ router = APIRouter(prefix="/analytics", tags=["Analytics"])
     response_model=ViolationsPerDayResponse,
     summary="Daily violation counts",
 )
+@cached(prefix="analytics:", ttl_seconds=300)
 async def violations_per_day(
     date_from: datetime | None = Query(default=None, description="Start of date range (ISO 8601)."),
     date_to: datetime | None = Query(default=None, description="End of date range (ISO 8601)."),
@@ -76,6 +78,7 @@ async def violations_per_day(
     response_model=ViolationsPerCameraResponse,
     summary="Per-camera violation counts",
 )
+@cached(prefix="analytics:", ttl_seconds=300)
 async def violations_per_camera(
     date_from: datetime | None = Query(default=None, description="Start of date range (ISO 8601)."),
     date_to: datetime | None = Query(default=None, description="End of date range (ISO 8601)."),
@@ -90,6 +93,7 @@ async def violations_per_camera(
     response_model=ComplianceRateResponse,
     summary="PPE compliance rate",
 )
+@cached(prefix="analytics:", ttl_seconds=300)
 async def compliance_rate(
     date_from: datetime | None = Query(default=None, description="Start of date range (ISO 8601)."),
     date_to: datetime | None = Query(default=None, description="End of date range (ISO 8601)."),
@@ -104,6 +108,7 @@ async def compliance_rate(
     response_model=HourlyTrendsResponse,
     summary="Hourly violation distribution",
 )
+@cached(prefix="analytics:", ttl_seconds=300)
 async def hourly_trends(
     date_from: datetime | None = Query(default=None, description="Start of date range (ISO 8601)."),
     date_to: datetime | None = Query(default=None, description="End of date range (ISO 8601)."),
@@ -118,6 +123,7 @@ async def hourly_trends(
     response_model=TopViolationTypesResponse,
     summary="Most frequent violation types",
 )
+@cached(prefix="analytics:", ttl_seconds=300)
 async def top_violation_types(
     date_from: datetime | None = Query(default=None, description="Start of date range (ISO 8601)."),
     date_to: datetime | None = Query(default=None, description="End of date range (ISO 8601)."),
@@ -133,6 +139,7 @@ async def top_violation_types(
     response_model=AnalyticsSummaryResponse,
     summary="Combined analytics dashboard payload",
 )
+@cached(prefix="analytics:", ttl_seconds=300)
 async def analytics_summary(
     date_from: datetime | None = Query(default=None, description="Start of date range (ISO 8601)."),
     date_to: datetime | None = Query(default=None, description="End of date range (ISO 8601)."),

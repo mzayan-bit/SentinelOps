@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from app.auth import Role, User, require_role
 from app.services.camera_manager import CameraManager
 from app.services.health_monitor import health_monitor, CameraHealth
+from app.services.cache_service import cached, invalidate_prefix
 from schemas.camera import CameraCreate, CameraResponse
 
 router = APIRouter(prefix="/api/cameras", tags=["Cameras"])
@@ -12,7 +13,8 @@ router = APIRouter(prefix="/api/cameras", tags=["Cameras"])
 camera_manager = CameraManager()
 
 @router.get("", response_model=List[CameraResponse], summary="List all cameras")
-def list_cameras(user: User = Depends(require_role(Role.VIEWER))):
+@cached(prefix="cameras:", ttl_seconds=5)
+async def list_cameras(user: User = Depends(require_role(Role.VIEWER))):
     """Retrieves all registered cameras and their current statuses."""
     cameras = camera_manager.list_cameras()
     return [
@@ -25,12 +27,13 @@ def list_cameras(user: User = Depends(require_role(Role.VIEWER))):
     ]
 
 @router.get("/health/all", response_model=Dict[str, CameraHealth], summary="Get health of all cameras")
-def get_all_health(user: User = Depends(require_role(Role.VIEWER))):
+@cached(prefix="health:", ttl_seconds=5)
+async def get_all_health(user: User = Depends(require_role(Role.VIEWER))):
     """Returns the real-time telemetry and health data for all monitored streams."""
     return health_monitor.get_all_health()
 
 @router.post("", response_model=CameraResponse, status_code=status.HTTP_201_CREATED, summary="Register a new camera")
-def add_camera(camera_in: CameraCreate, user: User = Depends(require_role(Role.ADMIN))):
+async def add_camera(camera_in: CameraCreate, user: User = Depends(require_role(Role.ADMIN))):
     """Registers a new video source and assigns it a UUID."""
     cam_id = camera_manager.add_camera(source=camera_in.source, name=camera_in.name)
     
@@ -40,6 +43,7 @@ def add_camera(camera_in: CameraCreate, user: User = Depends(require_role(Role.A
     if not new_cam:
         raise HTTPException(status_code=500, detail="Failed to retrieve created camera.")
         
+    await invalidate_prefix("cameras:")
     return CameraResponse(
         id=new_cam.id,
         source=new_cam.source,
@@ -48,7 +52,8 @@ def add_camera(camera_in: CameraCreate, user: User = Depends(require_role(Role.A
     )
 
 @router.get("/{camera_id}/health", response_model=CameraHealth, summary="Get camera health metrics")
-def get_camera_health(camera_id: str, user: User = Depends(require_role(Role.VIEWER))):
+@cached(prefix="health:", ttl_seconds=5)
+async def get_camera_health(camera_id: str, user: User = Depends(require_role(Role.VIEWER))):
     """Retrieves latency, FPS, and status for a specific camera."""
     health = health_monitor.get_health(camera_id)
     if not health:
@@ -56,29 +61,35 @@ def get_camera_health(camera_id: str, user: User = Depends(require_role(Role.VIE
     return health
 
 @router.delete("/{camera_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Remove a camera")
-def remove_camera(camera_id: uuid.UUID, user: User = Depends(require_role(Role.ADMIN))):
+async def remove_camera(camera_id: uuid.UUID, user: User = Depends(require_role(Role.ADMIN))):
     """Stops and removes the specified camera from the manager."""
     success = camera_manager.remove_camera(camera_id)
     if not success:
         raise HTTPException(status_code=404, detail="Camera not found.")
+    await invalidate_prefix("cameras:")
+    await invalidate_prefix("health:")
 
 @router.post("/{camera_id}/start", summary="Start camera processing")
-def start_camera(camera_id: uuid.UUID, user: User = Depends(require_role(Role.SUPERVISOR))):
+async def start_camera(camera_id: uuid.UUID, user: User = Depends(require_role(Role.SUPERVISOR))):
     """Starts the video processing pipeline for the given camera."""
     try:
         camera_manager.start_camera(camera_id)
         # Initialize tracking as offline initially till frames flow
         health_monitor.record_offline(str(camera_id))
+        await invalidate_prefix("cameras:")
+        await invalidate_prefix("health:")
         return {"status": "success", "message": f"Camera {camera_id} started."}
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
 @router.post("/{camera_id}/stop", summary="Stop camera processing")
-def stop_camera(camera_id: uuid.UUID, user: User = Depends(require_role(Role.SUPERVISOR))):
+async def stop_camera(camera_id: uuid.UUID, user: User = Depends(require_role(Role.SUPERVISOR))):
     """Stops the video processing pipeline for the given camera."""
     try:
         camera_manager.stop_camera(camera_id)
         health_monitor.record_offline(str(camera_id))
+        await invalidate_prefix("cameras:")
+        await invalidate_prefix("health:")
         return {"status": "success", "message": f"Camera {camera_id} stopped."}
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))

@@ -94,6 +94,14 @@ class Settings(BaseSettings):
             f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
         )
 
+    @property
+    def redis_url(self) -> str:
+        """Compile the Redis connection string from settings."""
+        if self.redis_host:
+            port = self.redis_port or 6379
+            return f"redis://{self.redis_host}:{port}/0"
+        return "redis://localhost:6379/0"
+
     model_config = SettingsConfigDict(
         env_file=_ENV_FILES,
         env_file_encoding="utf-8",
