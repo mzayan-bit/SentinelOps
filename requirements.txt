@@ -19,3 +19,9 @@ fpdf2
 psutil
 GPUtil
 pydantic-settings
+sqlalchemy>=2.0.0
+asyncpg
+alembic
+greenlet
+aiosqlite
+pytest-asyncio

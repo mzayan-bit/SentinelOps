@@ -83,6 +83,17 @@ class Settings(BaseSettings):
     redis_host: str | None = None
     redis_port: int | None = None
 
+    @property
+    def async_database_url(self) -> str:
+        """Compile the asyncpg connection string from settings."""
+        if not all([self.postgres_user, self.postgres_password, self.postgres_db, self.postgres_host]):
+            return "sqlite+aiosqlite:///:memory:"  # Fallback for testing if missing
+        
+        return (
+            f"postgresql+asyncpg://{self.postgres_user}:{self.postgres_password}"
+            f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
+        )
+
     model_config = SettingsConfigDict(
         env_file=_ENV_FILES,
         env_file_encoding="utf-8",
