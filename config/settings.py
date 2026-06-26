@@ -87,7 +87,7 @@ class Settings(BaseSettings):
     def async_database_url(self) -> str:
         """Compile the asyncpg connection string from settings."""
         if not all([self.postgres_user, self.postgres_password, self.postgres_db, self.postgres_host]):
-            return "sqlite+aiosqlite:///:memory:"  # Fallback for testing if missing
+            return "sqlite+aiosqlite:///sentinelops_dev.db"  # File-based fallback for dev/testing
         
         return (
             f"postgresql+asyncpg://{self.postgres_user}:{self.postgres_password}"

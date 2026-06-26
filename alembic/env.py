@@ -10,6 +10,7 @@ from alembic import context
 # Import our settings and base metadata
 from config.settings import settings
 from app.db.base import Base
+import app.db.models  # noqa: F401 — register all ORM models with Base.metadata
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

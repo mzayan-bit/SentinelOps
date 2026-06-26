@@ -27,3 +27,6 @@ output_*.mp4
 
 # ── Temp folders ──
 abc/
+
+# ── Local dev database ──
+*.db
