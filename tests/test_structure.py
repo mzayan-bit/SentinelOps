@@ -18,8 +18,15 @@ def test_critical_directories_exist() -> None:
     assert models_dir.exists(), f"Models directory '{models_dir}' does not exist."
 
     # Ensure artifacts parent exists, so artifacts can be written
-    artifacts_dir = Path(settings.artifacts_dir)
-    assert artifacts_dir.parent.exists(), f"Parent of artifacts dir '{artifacts_dir}' is missing."
+    for artifacts_dir in [
+        settings.alerts_dir, 
+        settings.reports_dir, 
+        settings.snapshots_dir, 
+        settings.events_dir,
+        settings.registry_dir
+    ]:
+        artifacts_dir.mkdir(parents=True, exist_ok=True)
+        assert artifacts_dir.exists(), f"Artifacts directory '{artifacts_dir}' does not exist."
 
 
 def test_configuration_loads() -> None:

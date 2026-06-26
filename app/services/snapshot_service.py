@@ -11,8 +11,9 @@ class SnapshotService:
     Manages physical storage of incident screenshots and associated metadata.
     Implements a robust YYYY/MM/DD partitioning structure to avoid directory limits.
     """
-    def __init__(self, base_dir: str = "artifacts/screenshots"):
-        self.base_dir = Path(base_dir)
+    def __init__(self, base_dir: Path | None = None):
+        from config.settings import settings
+        self.base_dir = Path(base_dir) if base_dir else settings.snapshots_dir
         # Ensure the base artifacts directory exists at startup
         self.base_dir.mkdir(parents=True, exist_ok=True)
 

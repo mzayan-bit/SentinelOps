@@ -158,6 +158,20 @@ This maps port 8000, provides required environment variables, and mounts the `ar
 
 ---
 
+## Configuration Management
+
+SentinelOps uses `pydantic-settings` for robust, type-checked centralized configuration.
+
+All settings are managed via the `ENVIRONMENT` variable (defaults to `dev`).
+This variable automatically loads the corresponding `.env` file from the `config/environments/` directory.
+
+- **Development (`ENVIRONMENT=dev`)**: Loads `config/environments/.env.dev`. Uses local `artifacts/` directories.
+- **Production (`ENVIRONMENT=prod`)**: Loads `config/environments/.env.prod`. Connects to external databases (postgres/redis) and mounted volume paths.
+
+If you are running the system outside of Docker Compose, ensure you copy `.env.example` to `.env` and set `ENVIRONMENT=dev` or your desired target.
+
+---
+
 ## Docker Compose Deployment (Recommended)
 
 SentinelOps includes a `docker-compose.yml` for standing up the full infrastructure stack (Backend API, PostgreSQL, Redis) simultaneously.

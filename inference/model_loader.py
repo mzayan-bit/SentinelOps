@@ -23,7 +23,8 @@ from ultralytics import YOLO
 
 logger = logging.getLogger("sentinelops.model_loader")
 
-DEFAULT_MODEL_PATH = "models/best.pt"
+from config.settings import settings
+DEFAULT_MODEL_PATH = settings.model_path
 
 
 class ModelNotFoundError(FileNotFoundError):

@@ -47,7 +47,9 @@ logger = logging.getLogger("sentinelops.report_service")
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
-DEFAULT_REPORTS_DIR = Path("artifacts/reports")
+from config.settings import settings
+
+DEFAULT_REPORTS_DIR = settings.reports_dir
 _INDEX_FILE = "reports_index.json"
 _MAX_PDF_VIOLATIONS = 100
 _ALERT_COLUMNS = [

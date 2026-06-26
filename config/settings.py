@@ -2,119 +2,109 @@
 SentinelOps — Centralised Settings
 =====================================
 Single source of truth for project-wide configuration.
-Values are read from environment variables (or ``.env`` file),
-with sensible defaults for local development.
+Leverages pydantic-settings for type validation and dynamic 
+environment loading.
 
 Usage::
 
     from config.settings import settings
 
     print(settings.model_path)
-    print(settings.confidence_threshold)
-    print(settings.log_level)
+    print(settings.alerts_dir)
 """
 
 from __future__ import annotations
 
 import logging
 import os
-from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Literal
 
-from dotenv import load_dotenv
-
-load_dotenv()
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 logger = logging.getLogger("sentinelops.settings")
 
 # ---------------------------------------------------------------------------
-# Valid choices
+# Valid choices for runtime evaluation
 # ---------------------------------------------------------------------------
 _VALID_LOG_LEVELS: set[str] = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
 _VALID_DEVICES: set[str] = {"auto", "cpu", "cuda", "mps"}
 
+# Determine active environment (defaults to dev)
+_ENV = os.getenv("ENVIRONMENT", "dev").lower()
+_ENV_FILE = f"config/environments/.env.{_ENV}"
 
-# ---------------------------------------------------------------------------
-# Settings
-# ---------------------------------------------------------------------------
-@dataclass(frozen=True)
-class Settings:
+# If root .env exists, it can override specific fields, 
+# so we load the environment-specific file first, then .env
+_ENV_FILES = (_ENV_FILE, ".env")
+
+
+class Settings(BaseSettings):
     """Immutable, validated project settings.
 
-    Every field maps to an environment variable. If the variable is
-    unset, the default shown below is used.
-
-    Attributes
-    ----------
-    model_path : Path
-        Path to YOLO model weights.  Env: ``MODEL_PATH``
-    confidence_threshold : float
-        Minimum detection confidence.  Env: ``CONFIDENCE_THRESHOLD``
-    log_level : str
-        Python logging level.  Env: ``LOG_LEVEL``
-    device : str
-        Inference device.  Env: ``DEVICE``
-    api_host : str
-        FastAPI bind address.  Env: ``API_HOST``
-    api_port : int
-        FastAPI bind port.  Env: ``API_PORT``
-    mlflow_tracking_uri : str
-        MLflow server URI.  Env: ``MLFLOW_TRACKING_URI``
-    artifacts_dir : Path
-        Root directory for generated artifacts.  Env: ``ARTIFACTS_DIR``
+    Uses pydantic-settings to validate required paths and secrets.
     """
 
-    model_path: Path = field(default_factory=lambda: Path(os.getenv("MODEL_PATH", "models/best.pt")))
-    confidence_threshold: float = field(default_factory=lambda: float(os.getenv("CONFIDENCE_THRESHOLD", "0.25")))
-    log_level: str = field(default_factory=lambda: os.getenv("LOG_LEVEL", "INFO").upper())
-    device: str = field(default_factory=lambda: os.getenv("DEVICE", "auto").lower())
-    api_host: str = field(default_factory=lambda: os.getenv("API_HOST", "0.0.0.0"))
-    api_port: int = field(default_factory=lambda: int(os.getenv("API_PORT", "8000")))
-    mlflow_tracking_uri: str = field(default_factory=lambda: os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000"))
-    artifacts_dir: Path = field(default_factory=lambda: Path(os.getenv("ARTIFACTS_DIR", "artifacts")))
+    # Environment
+    environment: Literal["dev", "prod", "test"] = Field(default="dev", alias="ENVIRONMENT")
 
-    def __post_init__(self) -> None:
-        """Validate all fields after initialisation."""
-        errors: list[str] = []
+    # API configuration
+    api_host: str = Field(default="0.0.0.0")
+    api_port: int = Field(default=8000)
 
-        if self.confidence_threshold < 0.0 or self.confidence_threshold > 1.0:
-            errors.append(
-                f"CONFIDENCE_THRESHOLD must be in [0, 1], got {self.confidence_threshold}"
-            )
+    # Core logic configuration
+    confidence_threshold: float = Field(default=0.25, ge=0.0, le=1.0)
+    log_level: str = Field(default="INFO")
+    device: str = Field(default="auto")
+    
+    # MLflow Tracking
+    mlflow_tracking_uri: str = Field(default="http://localhost:5000")
 
+    # ---------------------------------------------------------
+    # Hardcoded Paths (Required: No Defaults)
+    # ---------------------------------------------------------
+    model_path: Path
+    alerts_dir: Path
+    reports_dir: Path
+    snapshots_dir: Path
+    events_dir: Path
+    registry_dir: Path
+    
+    # ---------------------------------------------------------
+    # Infrastructure (Database & Redis) - optional depending on env
+    # ---------------------------------------------------------
+    postgres_user: str | None = None
+    postgres_password: str | None = None
+    postgres_db: str | None = None
+    postgres_host: str | None = None
+    postgres_port: int | None = None
+    
+    redis_host: str | None = None
+    redis_port: int | None = None
+
+    model_config = SettingsConfigDict(
+        env_file=_ENV_FILES,
+        env_file_encoding="utf-8",
+        extra="ignore"
+    )
+
+    def __post_init__(self):
+        """Additional manual validations that Pydantic Field constraints don't cover easily."""
         if self.log_level not in _VALID_LOG_LEVELS:
-            errors.append(
-                f"LOG_LEVEL must be one of {sorted(_VALID_LOG_LEVELS)}, got '{self.log_level}'"
-            )
-
+            raise ValueError(f"LOG_LEVEL must be one of {sorted(_VALID_LOG_LEVELS)}, got '{self.log_level}'")
         if self.device not in _VALID_DEVICES:
-            errors.append(
-                f"DEVICE must be one of {sorted(_VALID_DEVICES)}, got '{self.device}'"
-            )
-
-        if self.api_port < 1 or self.api_port > 65535:
-            errors.append(
-                f"API_PORT must be in [1, 65535], got {self.api_port}"
-            )
-
-        if errors:
-            raise ValueError(
-                "Invalid configuration:\n  • " + "\n  • ".join(errors)
-            )
-
-        logger.debug("Settings loaded: %s", self)
+            raise ValueError(f"DEVICE must be one of {sorted(_VALID_DEVICES)}, got '{self.device}'")
 
     def configure_logging(self) -> None:
-        """Apply :attr:`log_level` to the root logger."""
+        """Apply `log_level` to the root logger."""
         logging.basicConfig(
-            level=getattr(logging, self.log_level),
+            level=getattr(logging, self.log_level.upper(), logging.INFO),
             format="%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
             datefmt="%Y-%m-%d %H:%M:%S",
             force=True,
         )
 
 
-# ---------------------------------------------------------------------------
-# Module-level singleton
-# ---------------------------------------------------------------------------
+# Global singleton
 settings = Settings()

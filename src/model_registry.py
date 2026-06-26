@@ -60,7 +60,8 @@ logger = logging.getLogger("sentinelops.model_registry")
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
-DEFAULT_REGISTRY_ROOT = Path("artifacts/model_registry")
+from config.settings import settings
+DEFAULT_REGISTRY_ROOT = settings.registry_dir
 REGISTRY_INDEX = "registry.json"
 PRODUCTION_POINTER = "production.json"
 MODELS_DIR = "models"

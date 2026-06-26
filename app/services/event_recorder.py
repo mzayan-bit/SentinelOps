@@ -17,11 +17,12 @@ class EventRecorderService:
     asynchronously persists 20-second MP4 video clips (10s before, 10s after)
     when triggered by a violation.
     """
-    def __init__(self, fps: int = 30, pre_seconds: int = 10, post_seconds: int = 10, base_dir: str = "artifacts/events"):
+    def __init__(self, fps: int = 30, pre_seconds: int = 10, post_seconds: int = 10, base_dir: Path | None = None):
+        from config.settings import settings
+        self.base_dir = Path(base_dir) if base_dir else settings.events_dir
         self.fps = fps
         self.pre_max_frames = pre_seconds * fps
         self.post_max_frames = post_seconds * fps
-        self.base_dir = Path(base_dir)
         self.base_dir.mkdir(parents=True, exist_ok=True)
         
         # State tracking per camera

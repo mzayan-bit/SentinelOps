@@ -40,7 +40,9 @@ logger = logging.getLogger("sentinelops.alert_service")
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
-DEFAULT_ALERTS_DIR = Path("artifacts/alerts")
+from config.settings import settings
+
+DEFAULT_ALERTS_DIR = settings.alerts_dir
 INDEX_FILE = "alerts_index.json"
 
 
