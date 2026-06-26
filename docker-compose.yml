@@ -1,0 +1,71 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: sentinelops-backend:latest
+    container_name: sentinelops_backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8000
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=${POSTGRES_USER:-sentinel}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-sentinel_secret}
+      - POSTGRES_DB=${POSTGRES_DB:-sentinelops}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    volumes:
+      - ./artifacts:/app/artifacts
+      - ./config:/app/config
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - sentinel_net
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: sentinelops_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-sentinel}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sentinel_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-sentinelops}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sentinel} -d ${POSTGRES_DB:-sentinelops}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - sentinel_net
+
+  redis:
+    image: redis:7-alpine
+    container_name: sentinelops_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - sentinel_net
+
+networks:
+  sentinel_net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:

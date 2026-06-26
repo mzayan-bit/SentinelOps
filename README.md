@@ -158,6 +158,31 @@ This maps port 8000, provides required environment variables, and mounts the `ar
 
 ---
 
+## Docker Compose Deployment (Recommended)
+
+SentinelOps includes a `docker-compose.yml` for standing up the full infrastructure stack (Backend API, PostgreSQL, Redis) simultaneously.
+
+1. Ensure you have populated your environment variables (see `.env.example`).
+2. Bring up the stack in detached mode:
+
+```bash
+docker-compose up -d
+```
+
+The services are configured with health checks and persistent volumes for databases and application artifacts.
+
+To view logs:
+```bash
+docker-compose logs -f backend
+```
+
+To tear down the stack:
+```bash
+docker-compose down
+```
+
+---
+
 ## Repository Structure
 
 ```text
