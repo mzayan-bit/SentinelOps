@@ -68,11 +68,13 @@ async def test_cached_decorator_miss_and_set(mock_get_client):
     assert result.id == 2
     assert call_count == 1  # Function WAS executed
     mock_redis.get.assert_called_once()
-    mock_redis.setex.assert_called_once()
+    mock_redis.set.assert_called_once()
     
     # Check what was stored
-    args, kwargs = mock_redis.setex.call_args
-    key, ttl, value = args
+    args, kwargs = mock_redis.set.call_args
+    key = args[0]
+    value = args[1]
+    ttl = kwargs.get("ex")
     assert key.startswith("test:dummy_func:")
     assert ttl == 10
     

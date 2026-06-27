@@ -123,9 +123,9 @@ def test_supervisor_can_create_alert(client):
 
 def test_supervisor_can_generate_report(client):
     resp = client.post("/reports/generate", json={"format": "csv"}, headers={"X-API-Key": "key-super"})
-    # It might fail with 500 if the mock alert_service isn't wired up, 
-    # but the RBAC should pass (not 401/403). 201 is success.
-    assert resp.status_code in [201, 500]
+    # Report generation is now async (202). The RBAC test only validates
+    # that the supervisor is authorised (not 401/403).
+    assert resp.status_code in [201, 202, 500]
 
 
 def test_supervisor_cannot_delete_camera(client):

@@ -74,7 +74,9 @@ class EventRecorderService:
                 logger.info(f"Event recording triggered for camera {camera_id}")
 
     def _dispatch_save(self, camera_id: str):
-        """Copies buffers safely and spawns the background video encoder thread."""
+        """Copies buffers safely and submits the video encoder to the task worker."""
+        from app.services.task_worker import task_worker
+
         pre_frames = list(self.pre_buffers[camera_id])
         post_frames = list(self.post_buffers[camera_id])
         metadata = self.metadata_cache[camera_id]
@@ -85,13 +87,15 @@ class EventRecorderService:
         self.recording_states[camera_id] = False
         self.metadata_cache[camera_id] = None
         
-        # Spawn thread to avoid blocking the main inference pipeline
-        encoder_thread = threading.Thread(
-            target=self._save_video_and_metadata, 
-            args=(camera_id, pre_frames, post_frames, metadata),
-            daemon=True
+        # Submit to unified task worker pool
+        task_worker.submit(
+            self._save_video_and_metadata,
+            camera_id,
+            pre_frames,
+            post_frames,
+            metadata,
+            task_type="video_clip_export",
         )
-        encoder_thread.start()
 
     def _save_video_and_metadata(self, camera_id: str, pre_frames: list, post_frames: list, metadata: dict):
         """Heavy background task to write frames via OpenCV to MP4."""

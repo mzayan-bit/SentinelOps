@@ -9,7 +9,7 @@ Mount this router into any FastAPI application::
     app.include_router(report_router)
 
 Endpoints:
-    POST /reports/generate            — Generate a new report
+    POST /reports/generate            — Submit report generation (async)
     GET  /reports                     — List all generated reports
     GET  /reports/{report_id}/download — Download a report file
 """
@@ -27,6 +27,7 @@ from app.models.report import ReportFormat, ReportMetadata, ReportRequest
 from app.services.alert_service import AlertService
 from app.services.analytics_service import AnalyticsService
 from app.services.report_service import ReportNotFoundError, ReportService
+from app.services.task_worker import task_worker
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -60,18 +61,26 @@ _CONTENT_TYPES: dict[ReportFormat, str] = {
 # ---------------------------------------------------------------------------
 @router.post(
     "/generate",
-    response_model=ReportMetadata,
-    status_code=201,
-    summary="Generate a new report",
+    status_code=202,
+    summary="Submit report generation (async)",
 )
 async def generate_report(request: ReportRequest, user: User = Depends(require_role(Role.SUPERVISOR))):
-    """Generate a violation report in the specified format."""
-    try:
-        meta = _report_service.generate(request)
-        return meta
-    except Exception as exc:
-        logger.exception("Report generation failed")
-        raise HTTPException(status_code=500, detail=f"Report generation failed: {exc}")
+    """Submit a violation report for background generation.
+
+    Returns immediately with a task_id that can be polled via
+    ``GET /api/tasks/{task_id}`` for status and result.
+    """
+    task_id = task_worker.submit(
+        _report_service.generate,
+        request,
+        task_type="report_generation",
+    )
+    logger.info("Report generation submitted as task %s", task_id)
+    return {
+        "task_id": task_id,
+        "status": "PENDING",
+        "message": "Report generation submitted. Poll /api/tasks/{task_id} for status.",
+    }
 
 
 @router.get(
@@ -106,3 +115,4 @@ async def download_report(report_id: str, user: User = Depends(require_role(Role
         media_type=media_type,
         filename=path.name,
     )
+

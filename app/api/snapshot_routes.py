@@ -4,10 +4,11 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, s
 from fastapi.responses import FileResponse
 from app.auth import Role, User, require_role
 from app.services.snapshot_service import snapshot_service
+from app.services.task_worker import task_worker
 
 router = APIRouter(prefix="/api/snapshots", tags=["Snapshots"])
 
-@router.post("", status_code=status.HTTP_201_CREATED, summary="Save a new violation snapshot")
+@router.post("", status_code=status.HTTP_202_ACCEPTED, summary="Save a new violation snapshot")
 async def create_snapshot(
     camera_id: str = Form(..., description="ID of the originating camera"),
     metadata_json: str = Form("{}", description="Stringified JSON object containing telemetry/violation data"),
@@ -15,21 +16,29 @@ async def create_snapshot(
     user: User = Depends(require_role(Role.SUPERVISOR))
 ):
     """
-    Accepts an uploaded image file along with contextual metadata and persists them
-    into the daily partitioned artifact storage system.
+    Accepts an uploaded image file along with contextual metadata and submits
+    the persistence operation to the background task worker.
     """
     try:
         metadata_dict = json.loads(metadata_json)
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Invalid metadata_json string.")
 
+    # Read bytes synchronously before handing off (UploadFile is request-bound)
     frame_bytes = await file.read()
-    rel_path = snapshot_service.save_snapshot(camera_id, frame_bytes, metadata_dict)
-    
+
+    task_id = task_worker.submit(
+        snapshot_service.save_snapshot,
+        camera_id,
+        frame_bytes,
+        metadata_dict,
+        task_type="snapshot_save",
+    )
+
     return {
-        "status": "success", 
-        "message": "Snapshot persisted successfully",
-        "path": rel_path
+        "status": "accepted",
+        "task_id": task_id,
+        "message": "Snapshot save submitted to background worker.",
     }
 
 @router.get("/{year}/{month}/{day}/{filename}", summary="Retrieve snapshot image")
