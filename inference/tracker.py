@@ -24,6 +24,8 @@ from pathlib import Path
 import cv2
 
 from inference.model_loader import ModelLoader
+from inference.compliance_engine import ComplianceEngine
+from inference.track_history import TrackHistoryManager
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -37,7 +39,7 @@ class VideoTracker:
 
     Uses the singleton :class:`ModelLoader` to obtain the YOLO model and
     applies the internal ``.track()`` mechanism (e.g., ByteTrack) to maintain
-    IDs across frames.
+    IDs across frames. Also tracks PPE compliance history per person.
 
     Parameters
     ----------
@@ -48,6 +50,8 @@ class VideoTracker:
     def __init__(self, confidence: float = DEFAULT_CONFIDENCE) -> None:
         self._loader = ModelLoader()
         self._confidence = confidence
+        self.track_history = TrackHistoryManager()
+        self._compliance_engine = ComplianceEngine()
 
     def process_video(
         self,
@@ -83,6 +87,9 @@ class VideoTracker:
         cap = cv2.VideoCapture(str(input_p))
         if not cap.isOpened():
             raise FileNotFoundError(f"OpenCV failed to open video stream: {input_p}")
+
+        # Reset history for a fresh video run
+        self.track_history = TrackHistoryManager()
 
         width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
@@ -127,6 +134,11 @@ class VideoTracker:
                     conf=self._confidence,
                     verbose=False,
                 )
+                
+                if results and len(results) > 0:
+                    # Evaluate compliance and update history
+                    assessments = self._compliance_engine.evaluate_frame(results[0])
+                    self.track_history.update_from_assessments(assessments)
 
                 # The plot() method will automatically render tracking IDs
                 # alongside the bounding boxes and class names.
@@ -151,6 +163,9 @@ class VideoTracker:
                 elapsed,
                 actual_fps,
             )
+            
+            # Log the person tracking history summary
+            self.track_history.log_summary()
 
             cap.release()
             if writer:
