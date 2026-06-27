@@ -57,6 +57,7 @@ class Settings(BaseSettings):
     confidence_threshold: float = Field(default=0.25, ge=0.0, le=1.0)
     log_level: str = Field(default="INFO")
     device: str = Field(default="auto")
+    enable_privacy_mode: bool = Field(default=False, description="Blur faces in output video/snapshots")
     
     # MLflow Tracking
     mlflow_tracking_uri: str = Field(default="http://localhost:5000")

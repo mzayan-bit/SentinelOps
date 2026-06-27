@@ -28,6 +28,8 @@ from inference.compliance_engine import ComplianceEngine, ComplianceStatus
 from inference.track_history import TrackHistoryManager
 from inference.zone_engine import ZoneEngine
 from inference.heatmap_generator import HeatmapGenerator
+from inference.privacy_engine import PrivacyEngine
+from config.settings import settings
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -62,6 +64,7 @@ class VideoTracker:
         show: bool = False,
         tracker_type: str = DEFAULT_TRACKER,
         zones: list[dict] | None = None,
+        privacy_mode: bool | None = None,
     ) -> None:
         """Run tracking on a video file.
 
@@ -75,6 +78,10 @@ class VideoTracker:
             If True, display the video live using OpenCV window.
         tracker_type : str
             Tracking algorithm config. Usually 'bytetrack.yaml' or 'botsort.yaml'.
+        zones: list[dict] | None
+            Configured polygon zones for evaluation.
+        privacy_mode : bool | None
+            If True, faces will be blurred in the output video. If None, checks settings.
 
         Raises
         ------
@@ -119,6 +126,10 @@ class VideoTracker:
             writer = cv2.VideoWriter(str(out_p), fourcc, fps, (width, height))
             logger.info("Saving annotated output to '%s'", out_p)
 
+        # Privacy mode configuration
+        use_privacy = privacy_mode if privacy_mode is not None else settings.enable_privacy_mode
+        privacy_engine = PrivacyEngine() if use_privacy else None
+
         frame_count = 0
         t0 = time.perf_counter()
 
@@ -145,6 +156,7 @@ class VideoTracker:
                     verbose=False,
                 )
                 
+                annotated_frame = frame
                 if results and len(results) > 0:
                     result = results[0]
                     # Evaluate compliance and update history
@@ -170,19 +182,22 @@ class VideoTracker:
                     for v in zone_violations:
                         zone_violations_count += 1
                         logger.warning(
-                            "ZONE VIOLATION: Track %d %s zone '%s' (dwell time: %.1fs)",
-                            v.track_id, v.violation_type, v.zone_name, v.dwell_time
+                            f"[Zone Breach] Person {v.track_id} in {v.zone_name} (Dwell: {v.dwell_time:.1f}s)"
                         )
 
-                # The plot() method will automatically render tracking IDs
-                # alongside the bounding boxes and class names.
-                annotated_frame = results[0].plot()
+                    # YOLO's built-in plotting helper
+                    annotated_frame = result.plot()
 
+                # Apply Privacy Face Blurring (if enabled)
+                if privacy_engine:
+                    annotated_frame = privacy_engine.apply_privacy(annotated_frame)
+
+                # Visualization / Export
                 if writer:
                     writer.write(annotated_frame)
 
                 if show:
-                    cv2.imshow("SentinelOps Tracking (ByteTrack)", annotated_frame)
+                    cv2.imshow("SentinelOps Pipeline", annotated_frame)
                     if cv2.waitKey(1) & 0xFF == ord("q"):
                         logger.info("User interrupted video playback.")
                         break
