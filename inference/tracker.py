@@ -24,9 +24,10 @@ from pathlib import Path
 import cv2
 
 from inference.model_loader import ModelLoader
-from inference.compliance_engine import ComplianceEngine
+from inference.compliance_engine import ComplianceEngine, ComplianceStatus
 from inference.track_history import TrackHistoryManager
 from inference.zone_engine import ZoneEngine
+from inference.heatmap_generator import HeatmapGenerator
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -122,12 +123,17 @@ class VideoTracker:
         t0 = time.perf_counter()
 
         try:
+            heatmap_generator: HeatmapGenerator | None = None
+            
             while True:
                 success, frame = cap.read()
                 if not success:
                     break
 
                 frame_count += 1
+                
+                if frame_count == 1:
+                    heatmap_generator = HeatmapGenerator(width, height, background_frame=frame)
 
                 # model.track() automatically handles ByteTrack and assigns 'id'
                 # to the boxes if persist=True.
@@ -140,12 +146,27 @@ class VideoTracker:
                 )
                 
                 if results and len(results) > 0:
+                    result = results[0]
                     # Evaluate compliance and update history
-                    assessments = self._compliance_engine.evaluate_frame(results[0])
+                    assessments = self._compliance_engine.evaluate_frame(result)
                     self.track_history.update_from_assessments(assessments)
                     
+                    # Feed Heatmaps
+                    if heatmap_generator and result.boxes is not None:
+                        for idx, box in enumerate(result.boxes):
+                            # Bottom-center coordinate for movement
+                            xyxy = box.xyxy[0].tolist()
+                            x_min, y_min, x_max, y_max = xyxy
+                            bx = (x_min + x_max) / 2.0
+                            by = y_max
+                            heatmap_generator.add_movement_point(bx, by)
+                            
+                            # Check if this specific box had a violation this frame
+                            if idx < len(assessments) and assessments[idx].status != ComplianceStatus.SAFE:
+                                heatmap_generator.add_violation_point(bx, by)
+                    
                     # Evaluate zone entry/dwell time
-                    zone_violations = zone_engine.evaluate_frame(results[0])
+                    zone_violations = zone_engine.evaluate_frame(result)
                     for v in zone_violations:
                         zone_violations_count += 1
                         logger.warning(
@@ -179,6 +200,16 @@ class VideoTracker:
             
             # Log the person tracking history summary
             self.track_history.log_summary()
+            
+            # Generate and save Heatmaps
+            if heatmap_generator:
+                try:
+                    heatmap_generator.save_heatmaps(
+                        output_dir="artifacts/heatmaps", 
+                        prefix=input_p.stem
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to generate heatmaps: {e}")
 
             cap.release()
             if writer:
