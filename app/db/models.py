@@ -52,9 +52,38 @@ class CameraModel(Base):
     snapshots: Mapped[list["SnapshotModel"]] = relationship(
         back_populates="camera", cascade="all, delete-orphan"
     )
+    zones: Mapped[list["ZoneModel"]] = relationship(
+        back_populates="camera", cascade="all, delete-orphan"
+    )
 
     def __repr__(self) -> str:
         return f"<Camera {self.name!r} ({self.id})>"
+
+
+# ---------------------------------------------------------------------------
+# Polygon Zone
+# ---------------------------------------------------------------------------
+class ZoneModel(Base):
+    """A polygon zone attached to a camera for entry/dwell detection."""
+
+    __tablename__ = "zones"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    camera_id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("cameras.id"), nullable=False
+    )
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    points_json: Mapped[str] = mapped_column(Text, nullable=False) # JSON list of [x, y] coordinates
+    is_restricted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    max_dwell_time: Mapped[int | None] = mapped_column(Integer, nullable=True) # Seconds before violation
+
+    # Relationships
+    camera: Mapped["CameraModel"] = relationship(back_populates="zones")
+
+    def __repr__(self) -> str:
+        return f"<Zone {self.name!r} ({self.id})>"
 
 
 # ---------------------------------------------------------------------------

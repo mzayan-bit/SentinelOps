@@ -26,6 +26,7 @@ import cv2
 from inference.model_loader import ModelLoader
 from inference.compliance_engine import ComplianceEngine
 from inference.track_history import TrackHistoryManager
+from inference.zone_engine import ZoneEngine
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -59,6 +60,7 @@ class VideoTracker:
         output_path: str | Path | None = None,
         show: bool = False,
         tracker_type: str = DEFAULT_TRACKER,
+        zones: list[dict] | None = None,
     ) -> None:
         """Run tracking on a video file.
 
@@ -90,6 +92,8 @@ class VideoTracker:
 
         # Reset history for a fresh video run
         self.track_history = TrackHistoryManager()
+        zone_engine = ZoneEngine(zones or [])
+        zone_violations_count = 0
 
         width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
@@ -139,6 +143,15 @@ class VideoTracker:
                     # Evaluate compliance and update history
                     assessments = self._compliance_engine.evaluate_frame(results[0])
                     self.track_history.update_from_assessments(assessments)
+                    
+                    # Evaluate zone entry/dwell time
+                    zone_violations = zone_engine.evaluate_frame(results[0])
+                    for v in zone_violations:
+                        zone_violations_count += 1
+                        logger.warning(
+                            "ZONE VIOLATION: Track %d %s zone '%s' (dwell time: %.1fs)",
+                            v.track_id, v.violation_type, v.zone_name, v.dwell_time
+                        )
 
                 # The plot() method will automatically render tracking IDs
                 # alongside the bounding boxes and class names.
