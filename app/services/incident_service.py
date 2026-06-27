@@ -37,6 +37,14 @@ class IncidentService:
             task_type="slack_incident_summary"
         )
 
+        # Fire-and-forget: send Teams summary
+        from app.services.teams_service import teams_service
+        task_worker.submit(
+            teams_service.send_incident_summary,
+            incident,
+            task_type="teams_incident_summary"
+        )
+
         return incident
 
     def get_incidents(

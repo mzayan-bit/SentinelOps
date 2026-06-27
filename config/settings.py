@@ -104,6 +104,12 @@ class Settings(BaseSettings):
     slack_channel: str | None = None
     slack_severity_threshold: str = Field(default="high")  # low, medium, high, critical
 
+    # ---------------------------------------------------------
+    # MS Teams Notifications
+    # ---------------------------------------------------------
+    teams_webhook_url: str | None = None
+    teams_severity_threshold: str = Field(default="high")  # low, medium, high, critical
+
     @property
     def async_database_url(self) -> str:
         """Compile the asyncpg connection string from settings."""

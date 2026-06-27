@@ -182,6 +182,14 @@ class AlertService:
             task_type="slack_notification"
         )
 
+        # Fire-and-forget: send Teams notification
+        from app.services.teams_service import teams_service
+        task_worker.submit(
+            teams_service.send_alert_notification,
+            alert,
+            task_type="teams_notification"
+        )
+
         return alert
 
     def get(self, alert_id: str) -> Alert:
