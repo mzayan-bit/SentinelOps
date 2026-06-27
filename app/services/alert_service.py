@@ -165,6 +165,15 @@ class AlertService:
             assigned_to=alert.assigned_to,
         )
 
+        # Fire-and-forget: send email notification
+        from app.services.email_service import email_service
+        from app.services.task_worker import task_worker
+        task_worker.submit(
+            email_service.send_alert_notification, 
+            alert, 
+            task_type="email_notification"
+        )
+
         return alert
 
     def get(self, alert_id: str) -> Alert:

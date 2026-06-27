@@ -83,6 +83,19 @@ class Settings(BaseSettings):
     redis_host: str | None = None
     redis_port: int | None = None
 
+    # ---------------------------------------------------------
+    # Email Notifications (SMTP)
+    # ---------------------------------------------------------
+    smtp_host: str | None = None
+    smtp_port: int = Field(default=587)
+    smtp_user: str | None = None
+    smtp_password: str | None = None
+    smtp_tls: bool = Field(default=True)
+    smtp_from_email: str | None = None
+    
+    notify_emails: list[str] = Field(default_factory=list)
+    notify_severity_threshold: str = Field(default="high")  # low, medium, high, critical
+
     @property
     def async_database_url(self) -> str:
         """Compile the asyncpg connection string from settings."""

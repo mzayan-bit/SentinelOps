@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>New SentinelOps Alert</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f6f8;
+            color: #333333;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            background-color: #ffffff;
+            border-radius: 8px;
+            max-width: 600px;
+            margin: 0 auto;
+            overflow: hidden;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+        }
+        .header {
+            background-color: #1a1a2e;
+            color: #ffffff;
+            padding: 20px;
+            text-align: center;
+        }
+        .header h2 {
+            margin: 0;
+            font-size: 24px;
+        }
+        .content {
+            padding: 25px;
+        }
+        .alert-details {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            margin-bottom: 25px;
+        }
+        .alert-details th {
+            text-align: left;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-bottom: 2px solid #e9ecef;
+            width: 35%;
+        }
+        .alert-details td {
+            padding: 10px;
+            border-bottom: 1px solid #e9ecef;
+        }
+        .severity-low { color: #28a745; font-weight: bold; }
+        .severity-medium { color: #ffc107; font-weight: bold; }
+        .severity-high { color: #fd7e14; font-weight: bold; }
+        .severity-critical { color: #dc3545; font-weight: bold; }
+        
+        .snapshot-container {
+            text-align: center;
+            margin-top: 20px;
+        }
+        .snapshot-container img {
+            max-width: 100%;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        .footer {
+            background-color: #f8f9fa;
+            padding: 15px;
+            text-align: center;
+            font-size: 12px;
+            color: #6c757d;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>SentinelOps Alert Notification</h2>
+        </div>
+        <div class="content">
+            <p>A new alert requires your attention.</p>
+            
+            <table class="alert-details">
+                <tr>
+                    <th>Alert ID</th>
+                    <td>{{ alert.alert_id }}</td>
+                </tr>
+                <tr>
+                    <th>Severity</th>
+                    <td class="severity-{{ alert.severity.value | lower }}">{{ alert.severity.value }}</td>
+                </tr>
+                <tr>
+                    <th>Type</th>
+                    <td>{{ alert.alert_type.value }}</td>
+                </tr>
+                <tr>
+                    <th>Camera ID</th>
+                    <td>{{ alert.camera_id }}</td>
+                </tr>
+                <tr>
+                    <th>Confidence</th>
+                    <td>{{ "%.1f"|format(alert.confidence * 100) }}%</td>
+                </tr>
+                <tr>
+                    <th>Timestamp (UTC)</th>
+                    <td>{{ alert.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                </tr>
+            </table>
+
+            {% if has_snapshot %}
+            <div class="snapshot-container">
+                <p><strong>Evidence Snapshot:</strong></p>
+                <img src="cid:snapshot_img" alt="Alert Snapshot">
+            </div>
+            {% endif %}
+            
+            <p style="margin-top: 25px;">
+                Log in to the SentinelOps dashboard to investigate further or resolve this alert.
+            </p>
+        </div>
+        <div class="footer">
+            This is an automated message from your SentinelOps platform.
+        </div>
+    </div>
+</body>
+</html>

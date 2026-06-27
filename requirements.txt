@@ -26,3 +26,4 @@ greenlet
 aiosqlite
 pytest-asyncio
 redis>=5.0.0
+jinja2
