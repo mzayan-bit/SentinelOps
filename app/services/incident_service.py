@@ -27,6 +27,16 @@ class IncidentService:
         )
         self._incidents.append(incident)
         logger.info(f"Logged incident {incident.id} for camera {incident.camera_id} with severity {incident.severity}")
+
+        # Fire-and-forget: send Slack summary
+        from app.services.slack_service import slack_service
+        from app.services.task_worker import task_worker
+        task_worker.submit(
+            slack_service.send_incident_summary,
+            incident,
+            task_type="slack_incident_summary"
+        )
+
         return incident
 
     def get_incidents(

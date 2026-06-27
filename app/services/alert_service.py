@@ -174,6 +174,14 @@ class AlertService:
             task_type="email_notification"
         )
 
+        # Fire-and-forget: send Slack notification
+        from app.services.slack_service import slack_service
+        task_worker.submit(
+            slack_service.send_alert_notification,
+            alert,
+            task_type="slack_notification"
+        )
+
         return alert
 
     def get(self, alert_id: str) -> Alert:
