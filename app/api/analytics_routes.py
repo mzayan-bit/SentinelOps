@@ -134,16 +134,31 @@ async def top_violation_types(
     return _analytics_service.top_violation_types(date_from, date_to, limit=limit)
 
 
-@router.get(
-    "/summary",
-    response_model=AnalyticsSummaryResponse,
-    summary="Combined analytics dashboard payload",
-)
-@cached(prefix="analytics:", ttl_seconds=300)
-async def analytics_summary(
-    date_from: datetime | None = Query(default=None, description="Start of date range (ISO 8601)."),
-    date_to: datetime | None = Query(default=None, description="End of date range (ISO 8601)."),
-    user: User = Depends(require_role(Role.VIEWER)),
+@router.get("/summary", response_model=AnalyticsSummaryResponse, summary="Get full analytics summary")
+@cached(prefix="analytics:summary", ttl_seconds=300)
+async def get_analytics_summary(
+    date_from: datetime | None = Query(None, description="Start date/time"),
+    date_to: datetime | None = Query(None, description="End date/time"),
+    user: User = Depends(require_role(Role.VIEWER))
 ):
-    """Return all analytics metrics in a single response."""
-    return _analytics_service.summary(date_from, date_to)
+    """
+    Returns an aggregated payload containing all analytics metrics
+    for the specified time window.
+    """
+    return _analytics_service.summary(date_from=date_from, date_to=date_to)
+
+@router.get("/recommendations", summary="Get data-driven safety recommendations")
+@cached(prefix="analytics:recommendations", ttl_seconds=300)
+async def get_recommendations(
+    date_from: datetime | None = Query(None, description="Start date/time"),
+    date_to: datetime | None = Query(None, description="End date/time"),
+    user: User = Depends(require_role(Role.VIEWER))
+):
+    """
+    Analyzes site-wide telemetry and returns prioritized safety recommendations
+    based on compliance rates, trends, and repeat violations.
+    """
+    from app.services.recommendation_engine import RecommendationEngine
+    # We fetch the raw summary first
+    summary = _analytics_service.summary(date_from=date_from, date_to=date_to)
+    return RecommendationEngine.generate_recommendations(summary)
