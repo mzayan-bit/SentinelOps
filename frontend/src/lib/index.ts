@@ -5,3 +5,4 @@
 
 export { api, ApiError } from "./api-client";
 export { env } from "./env";
+export { cn } from "./utils";
