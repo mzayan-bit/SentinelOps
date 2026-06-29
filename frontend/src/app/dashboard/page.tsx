@@ -8,10 +8,31 @@ export const metadata: Metadata = {
 };
 
 const mockKpis = [
-  { label: "Active Cameras", value: "24", change: "All online", positive: true, icon: Camera, statusDot: "online" as const },
-  { label: "Today's Violations", value: "12", change: "-3 since yesterday", positive: true, icon: ShieldAlert, statusDot: "warning" as const },
+  {
+    label: "Active Cameras",
+    value: "24",
+    change: "All online",
+    positive: true,
+    icon: Camera,
+    statusDot: "online" as const,
+  },
+  {
+    label: "Today's Violations",
+    value: "12",
+    change: "-3 since yesterday",
+    positive: true,
+    icon: ShieldAlert,
+    statusDot: "warning" as const,
+  },
   { label: "Compliance Rate", value: "98.5%", change: "+0.2%", positive: true, icon: Activity },
-  { label: "System Health", value: "Optimal", change: "99.9% uptime", positive: true, icon: CheckCircle2, statusDot: "online" as const },
+  {
+    label: "System Health",
+    value: "Optimal",
+    change: "99.9% uptime",
+    positive: true,
+    icon: CheckCircle2,
+    statusDot: "online" as const,
+  },
 ];
 
 export default function DashboardPage() {
@@ -39,16 +60,16 @@ export default function DashboardPage() {
           description="Hourly detection counts across all cameras"
           className="lg:col-span-2"
         >
-          <div className="flex h-48 items-center justify-center rounded-lg border border-dashed border-border">
-            <span className="text-xs text-muted">Chart placeholder</span>
+          <div className="border-border flex h-48 items-center justify-center rounded-lg border border-dashed">
+            <span className="text-muted text-xs">Chart placeholder</span>
           </div>
         </PlaceholderCard>
         <PlaceholderCard
           title="Compliance Breakdown"
           description="PPE compliance by equipment type"
         >
-          <div className="flex h-48 items-center justify-center rounded-lg border border-dashed border-border">
-            <span className="text-xs text-muted">Chart placeholder</span>
+          <div className="border-border flex h-48 items-center justify-center rounded-lg border border-dashed">
+            <span className="text-muted text-xs">Chart placeholder</span>
           </div>
         </PlaceholderCard>
       </div>
@@ -59,8 +80,8 @@ export default function DashboardPage() {
           title="Recent Activity"
           description="Latest detection events and system alerts"
         >
-          <div className="flex h-32 items-center justify-center rounded-lg border border-dashed border-border">
-            <span className="text-xs text-muted">Activity table placeholder</span>
+          <div className="border-border flex h-32 items-center justify-center rounded-lg border border-dashed">
+            <span className="text-muted text-xs">Activity table placeholder</span>
           </div>
         </PlaceholderCard>
       </div>

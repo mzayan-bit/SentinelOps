@@ -18,42 +18,44 @@ export function CameraTile({ id, name, status, fps, lastDetection }: CameraTileP
   const config = statusConfig[status];
 
   return (
-    <div className="group overflow-hidden rounded-xl border border-border bg-surface transition-all duration-200 hover:border-accent/40 hover:bg-surface-elevated hover:shadow-lg">
-      <div className="flex items-center justify-between border-b border-border p-3">
+    <div className="group border-border bg-surface hover:border-accent/40 hover:bg-surface-elevated overflow-hidden rounded-xl border transition-all duration-200 hover:shadow-lg">
+      <div className="border-border flex items-center justify-between border-b p-3">
         <div className="flex flex-col">
-          <span className="text-sm font-semibold text-foreground">{name}</span>
-          <span className="text-[10px] font-mono text-muted uppercase tracking-wider">{id}</span>
+          <span className="text-foreground text-sm font-semibold">{name}</span>
+          <span className="text-muted font-mono text-[10px] tracking-wider uppercase">{id}</span>
         </div>
-        <div className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${config.bg}`}>
+        <div
+          className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold tracking-wider uppercase ${config.bg}`}
+        >
           <span className={`status-dot ${config.dot}`} />
           {config.label}
         </div>
       </div>
-      
+
       {/* Video Placeholder */}
       <div className="relative flex aspect-video items-center justify-center bg-[#050505]">
         {status === "online" ? (
-          <Radio className="h-8 w-8 text-muted/50 animate-pulse-glow" />
+          <Radio className="text-muted/50 animate-pulse-glow h-8 w-8" />
         ) : (
-          <VideoOff className="h-8 w-8 text-muted/30" />
+          <VideoOff className="text-muted/30 h-8 w-8" />
         )}
-        
+
         {/* Mock bounding boxes for online state */}
         {status === "online" && (
           <>
-            <div className="absolute left-[20%] top-[30%] h-1/3 w-1/4 rounded border border-success/40 bg-success/10" />
-            <div className="absolute right-[25%] top-[40%] h-1/4 w-1/5 rounded border border-danger/40 bg-danger/10" />
+            <div className="border-success/40 bg-success/10 absolute top-[30%] left-[20%] h-1/3 w-1/4 rounded border" />
+            <div className="border-danger/40 bg-danger/10 absolute top-[40%] right-[25%] h-1/4 w-1/5 rounded border" />
           </>
         )}
       </div>
-      
+
       {/* Metrics Footer */}
-      <div className="flex items-center justify-between border-t border-border p-3 bg-surface">
-        <div className="flex items-center gap-1.5 text-xs text-muted">
+      <div className="border-border bg-surface flex items-center justify-between border-t p-3">
+        <div className="text-muted flex items-center gap-1.5 text-xs">
           <Activity className="h-3.5 w-3.5" />
           <span className="font-mono">{fps} FPS</span>
         </div>
-        <div className="flex items-center gap-1.5 text-xs text-muted">
+        <div className="text-muted flex items-center gap-1.5 text-xs">
           <Clock className="h-3.5 w-3.5" />
           <span>{lastDetection}</span>
         </div>

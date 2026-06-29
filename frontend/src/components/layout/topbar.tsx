@@ -23,12 +23,12 @@ export function Topbar({ onMenuToggle }: TopbarProps) {
   const pageTitle = getPageTitle(pathname);
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center border-b border-border bg-topbar-bg backdrop-blur-xl">
+    <header className="border-border bg-topbar-bg sticky top-0 z-30 flex h-16 items-center border-b backdrop-blur-xl">
       <div className="flex w-full items-center gap-4 px-4 lg:px-6">
         {/* Mobile menu button */}
         <button
           onClick={onMenuToggle}
-          className="flex h-9 w-9 items-center justify-center rounded-lg text-muted transition-colors hover:bg-surface hover:text-foreground lg:hidden"
+          className="text-muted hover:bg-surface hover:text-foreground flex h-9 w-9 items-center justify-center rounded-lg transition-colors lg:hidden"
           aria-label="Toggle navigation menu"
         >
           <Menu className="h-5 w-5" />
@@ -36,20 +36,18 @@ export function Topbar({ onMenuToggle }: TopbarProps) {
 
         {/* Application Logo (Visible on mobile or if needed) */}
         <Link href="/" className="flex items-center gap-2 lg:hidden">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent-muted text-accent">
+          <div className="bg-accent-muted text-accent flex h-8 w-8 items-center justify-center rounded-lg">
             <Shield className="h-4.5 w-4.5" />
           </div>
-          <span className="text-sm font-semibold tracking-tight text-foreground">
-            {APP_NAME}
-          </span>
+          <span className="text-foreground text-sm font-semibold tracking-tight">{APP_NAME}</span>
         </Link>
 
         {/* Divider for mobile */}
-        <div className="hidden lg:block h-6 w-px bg-border mx-2 lg:mx-0" />
+        <div className="bg-border mx-2 hidden h-6 w-px lg:mx-0 lg:block" />
 
         {/* Page title */}
-        <div className="flex flex-col hidden sm:flex">
-          <h1 className="text-base font-semibold text-foreground">{pageTitle}</h1>
+        <div className="flex hidden flex-col sm:flex">
+          <h1 className="text-foreground text-base font-semibold">{pageTitle}</h1>
         </div>
 
         {/* Spacer */}
@@ -59,26 +57,26 @@ export function Topbar({ onMenuToggle }: TopbarProps) {
         <div className="flex items-center gap-2 sm:gap-4">
           {/* Notifications */}
           <button
-            className="relative flex h-9 w-9 items-center justify-center rounded-lg text-muted transition-colors hover:bg-surface hover:text-foreground"
+            className="text-muted hover:bg-surface hover:text-foreground relative flex h-9 w-9 items-center justify-center rounded-lg transition-colors"
             aria-label="Notifications"
           >
             <Bell className="h-5 w-5" />
-            <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-danger animate-pulse-glow" />
+            <span className="bg-danger animate-pulse-glow absolute top-2 right-2 h-2 w-2 rounded-full" />
           </button>
 
           {/* Divider */}
-          <div className="h-6 w-px bg-border" />
+          <div className="bg-border h-6 w-px" />
 
           {/* Profile Dropdown Placeholder */}
-          <button className="flex items-center gap-2 rounded-lg p-1 transition-colors hover:bg-surface text-left">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-accent-muted text-accent">
+          <button className="hover:bg-surface flex items-center gap-2 rounded-lg p-1 text-left transition-colors">
+            <div className="bg-accent-muted text-accent flex h-8 w-8 items-center justify-center rounded-full">
               <User className="h-4 w-4" />
             </div>
             <div className="hidden md:flex md:flex-col">
-              <span className="text-sm font-medium text-foreground">Admin User</span>
-              <span className="text-[10px] text-muted uppercase tracking-wider">Operator</span>
+              <span className="text-foreground text-sm font-medium">Admin User</span>
+              <span className="text-muted text-[10px] tracking-wider uppercase">Operator</span>
             </div>
-            <ChevronDown className="h-4 w-4 text-muted hidden md:block" />
+            <ChevronDown className="text-muted hidden h-4 w-4 md:block" />
           </button>
         </div>
       </div>

@@ -72,23 +72,21 @@ export default function ModelsPage() {
           return (
             <div
               key={model.name}
-              className="flex flex-col gap-3 rounded-xl border border-border bg-surface p-5 transition-colors hover:bg-surface-elevated sm:flex-row sm:items-center sm:justify-between"
+              className="border-border bg-surface hover:bg-surface-elevated flex flex-col gap-3 rounded-xl border p-5 transition-colors sm:flex-row sm:items-center sm:justify-between"
             >
               <div className="flex items-start gap-4">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-purple-400/10 text-purple-400">
                   <Boxes className="h-5 w-5" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-semibold text-foreground">
-                    {model.name}
-                  </h3>
-                  <p className="mt-0.5 text-xs text-muted">
+                  <h3 className="text-foreground text-sm font-semibold">{model.name}</h3>
+                  <p className="text-muted mt-0.5 text-xs">
                     {model.architecture} · mAP50: {model.accuracy}
                   </p>
                 </div>
               </div>
               <div className="flex items-center gap-3 sm:gap-4">
-                <span className="text-xs text-muted">Updated {model.updated}</span>
+                <span className="text-muted text-xs">Updated {model.updated}</span>
                 <span
                   className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ${status.className}`}
                 >

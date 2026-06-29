@@ -17,20 +17,20 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   return (
     <aside
       className={clsx(
-        "flex h-screen flex-col border-r border-border bg-sidebar-bg transition-[width] duration-250 ease-out",
-        collapsed ? "w-[68px]" : "w-60"
+        "border-border bg-sidebar-bg flex h-screen flex-col border-r transition-[width] duration-250 ease-out",
+        collapsed ? "w-[68px]" : "w-60",
       )}
     >
       {/* Brand */}
-      <div className="flex h-16 items-center border-b border-border px-4">
-        <Link href="/" className="flex items-center gap-3 overflow-hidden group">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent-muted text-accent transition-colors group-hover:bg-accent group-hover:text-white">
+      <div className="border-border flex h-16 items-center border-b px-4">
+        <Link href="/" className="group flex items-center gap-3 overflow-hidden">
+          <div className="bg-accent-muted text-accent group-hover:bg-accent flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors group-hover:text-white">
             <Shield className="h-[18px] w-[18px]" />
           </div>
           <span
             className={clsx(
-              "whitespace-nowrap text-sm font-semibold tracking-tight text-foreground transition-opacity duration-200",
-              collapsed ? "opacity-0 w-0" : "opacity-100"
+              "text-foreground text-sm font-semibold tracking-tight whitespace-nowrap transition-opacity duration-200",
+              collapsed ? "w-0 opacity-0" : "opacity-100",
             )}
           >
             {APP_NAME}
@@ -43,8 +43,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         <ul className="space-y-1">
           {navItems.map((item) => {
             const isActive =
-              pathname === item.href ||
-              (item.href !== "/" && pathname.startsWith(item.href));
+              pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
             const Icon = item.icon;
 
             return (
@@ -56,39 +55,37 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
                     "group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-150",
                     isActive
                       ? "bg-sidebar-active text-accent"
-                      : "text-muted hover:bg-sidebar-hover hover:text-foreground"
+                      : "text-muted hover:bg-sidebar-hover hover:text-foreground",
                   )}
                 >
                   {/* Active indicator bar */}
                   {isActive && (
-                    <span className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-accent" />
+                    <span className="bg-accent absolute top-1/2 left-0 h-5 w-[3px] -translate-y-1/2 rounded-r-full" />
                   )}
                   <Icon
                     className={clsx(
                       "h-[18px] w-[18px] shrink-0 transition-colors",
-                      isActive
-                        ? "text-accent"
-                        : "text-muted group-hover:text-foreground"
+                      isActive ? "text-accent" : "text-muted group-hover:text-foreground",
                     )}
                   />
                   <span
                     className={clsx(
                       "truncate transition-opacity duration-200",
-                      collapsed ? "opacity-0 w-0 overflow-hidden" : "opacity-100"
+                      collapsed ? "w-0 overflow-hidden opacity-0" : "opacity-100",
                     )}
                   >
                     {item.label}
                   </span>
                   {item.badge && !collapsed && (
-                    <span className="ml-auto flex h-5 items-center rounded-full bg-danger/15 px-2 text-[10px] font-bold uppercase tracking-wider text-danger">
-                      <span className="mr-1 h-1.5 w-1.5 rounded-full bg-danger animate-pulse-glow" />
+                    <span className="bg-danger/15 text-danger ml-auto flex h-5 items-center rounded-full px-2 text-[10px] font-bold tracking-wider uppercase">
+                      <span className="bg-danger animate-pulse-glow mr-1 h-1.5 w-1.5 rounded-full" />
                       {item.badge}
                     </span>
                   )}
 
                   {/* Collapsed tooltip */}
                   {collapsed && (
-                    <span className="pointer-events-none absolute left-full ml-2 rounded-md bg-surface-elevated px-2.5 py-1 text-xs font-medium text-foreground opacity-0 shadow-lg transition-opacity group-hover:opacity-100 z-50 whitespace-nowrap border border-border">
+                    <span className="bg-surface-elevated text-foreground border-border pointer-events-none absolute left-full z-50 ml-2 rounded-md border px-2.5 py-1 text-xs font-medium whitespace-nowrap opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
                       {item.label}
                     </span>
                   )}
@@ -100,14 +97,14 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       </nav>
 
       {/* Footer: collapse toggle + status */}
-      <div className="border-t border-border px-2 py-3 space-y-2">
+      <div className="border-border space-y-2 border-t px-2 py-3">
         {/* System status */}
         <div className={clsx("flex items-center gap-2 px-3", collapsed && "justify-center")}>
           <span className="status-dot status-dot--online shrink-0" />
           <span
             className={clsx(
-              "text-[11px] text-muted transition-opacity duration-200",
-              collapsed ? "opacity-0 w-0 overflow-hidden" : "opacity-100"
+              "text-muted text-[11px] transition-opacity duration-200",
+              collapsed ? "w-0 overflow-hidden opacity-0" : "opacity-100",
             )}
           >
             System Online
@@ -117,7 +114,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         {/* Collapse button */}
         <button
           onClick={onToggle}
-          className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted transition-colors hover:bg-sidebar-hover hover:text-foreground"
+          className="text-muted hover:bg-sidebar-hover hover:text-foreground flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors"
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
           {collapsed ? (

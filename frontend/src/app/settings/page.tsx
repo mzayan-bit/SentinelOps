@@ -60,7 +60,7 @@ export default function SettingsPage() {
           return (
             <button
               key={section.title}
-              className="group flex w-full items-center gap-4 rounded-xl border border-border bg-surface p-5 text-left transition-all duration-200 hover:border-accent/30 hover:bg-surface-elevated"
+              className="group border-border bg-surface hover:border-accent/30 hover:bg-surface-elevated flex w-full items-center gap-4 rounded-xl border p-5 text-left transition-all duration-200"
             >
               <div
                 className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${section.bg} ${section.color} transition-transform group-hover:scale-110`}
@@ -68,13 +68,13 @@ export default function SettingsPage() {
                 <Icon className="h-5 w-5" />
               </div>
               <div className="flex-1">
-                <h3 className="text-sm font-semibold text-foreground group-hover:text-accent transition-colors">
+                <h3 className="text-foreground group-hover:text-accent text-sm font-semibold transition-colors">
                   {section.title}
                 </h3>
-                <p className="mt-0.5 text-xs text-muted">{section.description}</p>
+                <p className="text-muted mt-0.5 text-xs">{section.description}</p>
               </div>
               <svg
-                className="h-4 w-4 text-muted transition-transform group-hover:translate-x-0.5 group-hover:text-foreground"
+                className="text-muted group-hover:text-foreground h-4 w-4 transition-transform group-hover:translate-x-0.5"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"

@@ -24,47 +24,36 @@ export default function AnalyticsPage() {
           { label: "Compliance Score", value: "—" },
           { label: "Zones Monitored", value: "—" },
         ].map((m) => (
-          <div
-            key={m.label}
-            className="rounded-xl border border-border bg-surface p-4"
-          >
-            <span className="text-[11px] font-medium uppercase tracking-wider text-muted">
+          <div key={m.label} className="border-border bg-surface rounded-xl border p-4">
+            <span className="text-muted text-[11px] font-medium tracking-wider uppercase">
               {m.label}
             </span>
-            <p className="mt-2 text-2xl font-bold text-foreground font-mono">
-              {m.value}
-            </p>
+            <p className="text-foreground mt-2 font-mono text-2xl font-bold">{m.value}</p>
           </div>
         ))}
       </div>
 
       {/* Chart areas */}
       <div className="animate-fade-in stagger-2 grid gap-4 lg:grid-cols-2">
-        <PlaceholderCard
-          title="Violation Trends"
-          description="Weekly violation count by category"
-        >
-          <div className="flex h-56 items-center justify-center rounded-lg border border-dashed border-border">
-            <span className="text-xs text-muted">Line chart placeholder</span>
+        <PlaceholderCard title="Violation Trends" description="Weekly violation count by category">
+          <div className="border-border flex h-56 items-center justify-center rounded-lg border border-dashed">
+            <span className="text-muted text-xs">Line chart placeholder</span>
           </div>
         </PlaceholderCard>
         <PlaceholderCard
           title="Zone Heatmap"
           description="Violation density across monitored zones"
         >
-          <div className="flex h-56 items-center justify-center rounded-lg border border-dashed border-border">
-            <span className="text-xs text-muted">Heatmap placeholder</span>
+          <div className="border-border flex h-56 items-center justify-center rounded-lg border border-dashed">
+            <span className="text-muted text-xs">Heatmap placeholder</span>
           </div>
         </PlaceholderCard>
       </div>
 
       <div className="animate-fade-in stagger-3 mt-4">
-        <PlaceholderCard
-          title="Compliance Over Time"
-          description="30-day rolling compliance rate"
-        >
-          <div className="flex h-48 items-center justify-center rounded-lg border border-dashed border-border">
-            <span className="text-xs text-muted">Area chart placeholder</span>
+        <PlaceholderCard title="Compliance Over Time" description="30-day rolling compliance rate">
+          <div className="border-border flex h-48 items-center justify-center rounded-lg border border-dashed">
+            <span className="text-muted text-xs">Area chart placeholder</span>
           </div>
         </PlaceholderCard>
       </div>

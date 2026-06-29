@@ -1,36 +1,61 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# SentinelOps Frontend
+
+Production-grade Next.js 15 application providing the user interface for the SentinelOps PPE Safety Monitoring platform.
+
+## Architecture & Stack
+
+The frontend follows a clean architecture built for high performance and strict type safety.
+
+- **Framework**: Next.js 15 (App Router)
+- **Language**: TypeScript (`strict` mode)
+- **Styling**: TailwindCSS v4 with a custom Glassmorphism design system
+- **State**: React Context + Custom Hooks
+- **Formatting**: Prettier (`prettier-plugin-tailwindcss`)
+- **Linting**: ESLint
+
+## Directory Structure
+
+```text
+frontend/
+├── src/
+│   ├── app/           # Next.js App Router pages and layouts
+│   ├── components/    # Reusable UI elements (Layout, Cards, Tiles)
+│   ├── config/        # Static app configuration (Navigation, Constants)
+│   ├── hooks/         # Custom React hooks (API polling, WebSocket, Debounce)
+│   ├── lib/           # Core utilities (Typed Fetch Client, Env Validation)
+│   ├── stores/        # Global state contexts (Camera, Alerts, Theme)
+│   └── types/         # TypeScript definitions mirroring backend Pydantic models
+├── public/            # Static assets
+└── .env.local         # Environment variables (API/WS URLs)
+```
 
 ## Getting Started
 
-First, run the development server:
+1. **Install Dependencies**
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+   ```bash
+   npm install
+   ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. **Environment Variables**
+   Copy the example environment file:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+   ```bash
+   cp .env.local.example .env.local
+   ```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+   Ensure `NEXT_PUBLIC_API_URL` points to your running FastAPI backend.
 
-## Learn More
+3. **Development Server**
+   ```bash
+   npm run dev
+   ```
+   The application will be available at [http://localhost:3000](http://localhost:3000).
 
-To learn more about Next.js, take a look at the following resources:
+## Code Quality
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+To maintain consistency and catch errors early:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **Format Code**: `npm run format`
+- **Lint Code**: `npm run lint`
+- **Check Types**: `npm run build`

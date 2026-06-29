@@ -1,5 +1,13 @@
 import type { Metadata } from "next";
-import { Home, LayoutDashboard, Radio, ShieldAlert, BarChart3, Boxes, Settings } from "lucide-react";
+import {
+  Home,
+  LayoutDashboard,
+  Radio,
+  ShieldAlert,
+  BarChart3,
+  Boxes,
+  Settings,
+} from "lucide-react";
 import { PageHeader } from "@/components/ui";
 import Link from "next/link";
 
@@ -75,26 +83,21 @@ export default function HomePage() {
           { label: "Open Violations", value: "—", dot: "status-dot--warning" },
           { label: "Model Accuracy", value: "—", dot: "status-dot--online" },
         ].map((stat) => (
-          <div
-            key={stat.label}
-            className="rounded-xl border border-border bg-surface p-4"
-          >
-            <div className="flex items-center gap-2 mb-2">
+          <div key={stat.label} className="border-border bg-surface rounded-xl border p-4">
+            <div className="mb-2 flex items-center gap-2">
               <span className={`status-dot ${stat.dot}`} />
-              <span className="text-[11px] font-medium uppercase tracking-wider text-muted">
+              <span className="text-muted text-[11px] font-medium tracking-wider uppercase">
                 {stat.label}
               </span>
             </div>
-            <span className="text-2xl font-bold text-foreground font-mono">
-              {stat.value}
-            </span>
+            <span className="text-foreground font-mono text-2xl font-bold">{stat.value}</span>
           </div>
         ))}
       </div>
 
       {/* Quick links grid */}
       <div className="animate-fade-in stagger-2">
-        <h3 className="mb-4 text-sm font-semibold text-muted uppercase tracking-wider">
+        <h3 className="text-muted mb-4 text-sm font-semibold tracking-wider uppercase">
           Quick Access
         </h3>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -104,7 +107,7 @@ export default function HomePage() {
               <Link
                 key={link.href}
                 href={link.href}
-                className="group rounded-xl border border-border bg-surface p-5 transition-all duration-200 hover:border-accent/30 hover:bg-surface-elevated"
+                className="group border-border bg-surface hover:border-accent/30 hover:bg-surface-elevated rounded-xl border p-5 transition-all duration-200"
               >
                 <div className="flex items-start gap-4">
                   <div
@@ -113,12 +116,10 @@ export default function HomePage() {
                     <Icon className="h-5 w-5" />
                   </div>
                   <div>
-                    <h4 className="text-sm font-semibold text-foreground group-hover:text-accent transition-colors">
+                    <h4 className="text-foreground group-hover:text-accent text-sm font-semibold transition-colors">
                       {link.label}
                     </h4>
-                    <p className="mt-1 text-xs text-muted leading-relaxed">
-                      {link.description}
-                    </p>
+                    <p className="text-muted mt-1 text-xs leading-relaxed">{link.description}</p>
                   </div>
                 </div>
               </Link>
