@@ -74,6 +74,13 @@ class IncidentService:
         filtered.sort(key=lambda x: x.timestamp, reverse=True)
         return filtered[:limit]
 
+    def get_incident_by_id(self, incident_id: str) -> Optional[IncidentResponse]:
+        """Fetch a specific incident by its ID."""
+        for inc in self._incidents:
+            if str(inc.id) == str(incident_id):
+                return inc
+        return None
+
     def clear_incidents(self):
         """Clears all incidents. Primarily used for testing."""
         self._incidents.clear()

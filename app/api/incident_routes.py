@@ -34,3 +34,21 @@ def get_incidents(
         end_time=end_time, 
         limit=limit
     )
+
+@router.get("/{incident_id}/summary", summary="Generate a structured summary for an incident")
+def get_incident_summary(
+    incident_id: str,
+    user: User = Depends(require_role(Role.VIEWER))
+):
+    """
+    Generates a natural language summary of the incident including what happened,
+    when, where, severity, and actionable recommendations.
+    """
+    from fastapi import HTTPException
+    from app.services.summarizer import IncidentSummarizer
+    
+    incident = incident_service.get_incident_by_id(incident_id)
+    if not incident:
+        raise HTTPException(status_code=404, detail="Incident not found")
+        
+    return IncidentSummarizer.generate_summary(incident)
