@@ -91,6 +91,28 @@ export interface RecommendationResponse {
   recommendations: Recommendation[];
 }
 
+// ─── Reports ─────────────────────────────────────────────────────────────────
+
+export type ReportFormat = "csv" | "excel" | "pdf";
+
+export interface ReportRequest {
+  format: ReportFormat;
+  date_from: string | null;
+  date_to: string | null;
+  include_charts: boolean;
+  include_screenshots: boolean;
+  title: string;
+}
+
+export interface ReportMetadata {
+  report_id: string;
+  format: ReportFormat;
+  filename: string;
+  generated_at: string;
+  file_path: string;
+  file_size_bytes: number;
+}
+
 // ─── Search ──────────────────────────────────────────────────────────────────
 
 export interface SearchFilters {
