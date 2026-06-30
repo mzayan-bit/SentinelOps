@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import useSWR from "swr";
 import {
   Bar,
@@ -15,13 +16,14 @@ import {
   LineChart,
   Line,
 } from "recharts";
-import { ShieldAlert, CheckCircle2, AlertTriangle, Info } from "lucide-react";
+import { ShieldAlert, Info } from "lucide-react";
 import { api } from "@/lib/api-client";
 import { PageHeader, Card, CardHeader, CardTitle, CardContent, Badge } from "@/components/ui";
-import { type AnalyticsSummaryResponse, type RecommendationResponse } from "@/types";
+import { type AnalyticsSummaryResponse, type RecommendationResponse, type Alert } from "@/types";
 
 const fetcherSummary = () => api.get<AnalyticsSummaryResponse>("/api/analytics/summary");
 const fetcherRecs = () => api.get<RecommendationResponse>("/api/analytics/recommendations");
+const fetcherAlerts = () => api.get<Alert[]>("/api/alerts");
 
 // Colors from our global theme
 const COLORS = {
@@ -43,8 +45,38 @@ export default function AnalyticsPage() {
     "/api/analytics/recommendations",
     fetcherRecs,
   );
+  const { data: alerts, isLoading: isLoadingAlerts } = useSWR("/api/alerts", fetcherAlerts);
 
-  const isLoading = isLoadingSum || isLoadingRecs;
+  const isLoading = isLoadingSum || isLoadingRecs || isLoadingAlerts;
+
+  const topViolationsData = useMemo(() => {
+    if (!alerts) return [];
+
+    const counts = alerts.reduce(
+      (acc, alert) => {
+        const type = alert.alert_type.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
+        acc[type] = (acc[type] || 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
+
+    return Object.entries(counts)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5); // Top 5
+  }, [alerts]);
+
+  const violationsByCameraData = useMemo(() => {
+    if (!summary?.violations_per_camera?.data) return [];
+    return summary.violations_per_camera.data
+      .map((item) => ({
+        camera_id: item.camera_id.split("-")[0],
+        count: item.count,
+      }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+  }, [summary]);
 
   if (isLoading) {
     return (
@@ -55,7 +87,9 @@ export default function AnalyticsPage() {
           icon={Info}
         />
         <div className="flex h-64 items-center justify-center">
-          <p className="text-muted animate-pulse text-sm">Aggregating analytics...</p>
+          <p className="animate-pulse text-sm text-[var(--color-muted)]">
+            Aggregating analytics...
+          </p>
         </div>
       </div>
     );
@@ -69,8 +103,10 @@ export default function AnalyticsPage() {
           description="Site-wide telemetry and AI recommendations."
           icon={Info}
         />
-        <div className="bg-danger/10 border-danger/20 rounded-xl border p-6">
-          <p className="text-danger text-sm font-medium">Failed to load analytics data.</p>
+        <div className="rounded-xl border border-[var(--color-danger)]/20 bg-[var(--color-danger)]/10 p-6">
+          <p className="text-sm font-medium text-[var(--color-danger)]">
+            Failed to load analytics data.
+          </p>
         </div>
       </div>
     );
@@ -93,12 +129,17 @@ export default function AnalyticsPage() {
       {/* AI Recommendations Section */}
       <section className="space-y-4">
         <div className="flex items-center gap-2">
-          <ShieldAlert className="text-accent h-5 w-5" />
-          <h2 className="text-xl font-semibold tracking-tight">AI Safety Directives</h2>
+          <ShieldAlert className="h-5 w-5 text-[var(--color-accent)]" />
+          <h2 className="text-xl font-semibold tracking-tight text-[var(--color-foreground)]">
+            AI Safety Directives
+          </h2>
         </div>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
           {recs.recommendations.map((rec, i) => (
-            <Card key={i} className={rec.priority === "HIGH" ? "border-danger/50" : ""}>
+            <Card
+              key={i}
+              className={rec.priority === "HIGH" ? "border-[var(--color-danger)]/50" : ""}
+            >
               <CardHeader className="pb-2">
                 <div className="flex items-start justify-between">
                   <Badge
@@ -112,14 +153,16 @@ export default function AnalyticsPage() {
                   >
                     {rec.priority}
                   </Badge>
-                  <span className="text-muted text-xs tracking-wider uppercase">
+                  <span className="text-xs tracking-wider text-[var(--color-muted)] uppercase">
                     {rec.category}
                   </span>
                 </div>
                 <CardTitle className="mt-4 text-lg">{rec.title}</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-muted text-sm leading-relaxed">{rec.description}</p>
+                <p className="text-sm leading-relaxed text-[var(--color-muted)]">
+                  {rec.description}
+                </p>
               </CardContent>
             </Card>
           ))}
@@ -196,7 +239,9 @@ export default function AnalyticsPage() {
               <span className="text-3xl font-bold">
                 {(summary.compliance_rate.compliance_rate * 100).toFixed(1)}%
               </span>
-              <span className="text-muted text-xs tracking-widest uppercase">Rate</span>
+              <span className="text-xs tracking-widest text-[var(--color-muted)] uppercase">
+                Rate
+              </span>
             </div>
           </CardContent>
         </Card>
@@ -237,6 +282,76 @@ export default function AnalyticsPage() {
                   activeDot={{ r: 6 }}
                 />
               </LineChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        {/* Top Violations */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Top Violation Types</CardTitle>
+          </CardHeader>
+          <CardContent className="h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart layout="vertical" data={topViolationsData} margin={{ left: 24 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke={COLORS.surface} horizontal={false} />
+                <XAxis
+                  type="number"
+                  stroke={COLORS.muted}
+                  fontSize={12}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <YAxis
+                  dataKey="name"
+                  type="category"
+                  stroke={COLORS.muted}
+                  fontSize={11}
+                  tickLine={false}
+                  axisLine={false}
+                  width={100}
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: COLORS.surface,
+                    borderColor: COLORS.surface,
+                    borderRadius: "8px",
+                  }}
+                  itemStyle={{ color: COLORS.text }}
+                />
+                <Bar dataKey="count" fill={COLORS.danger} radius={[0, 4, 4, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        {/* Violations by Camera */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Incidents by Camera</CardTitle>
+          </CardHeader>
+          <CardContent className="h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={violationsByCameraData}>
+                <CartesianGrid strokeDasharray="3 3" stroke={COLORS.surface} vertical={false} />
+                <XAxis
+                  dataKey="camera_id"
+                  stroke={COLORS.muted}
+                  fontSize={11}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <YAxis stroke={COLORS.muted} fontSize={12} tickLine={false} axisLine={false} />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: COLORS.surface,
+                    borderColor: COLORS.surface,
+                    borderRadius: "8px",
+                  }}
+                  itemStyle={{ color: COLORS.text }}
+                />
+                <Bar dataKey="count" fill={COLORS.accent} radius={[4, 4, 0, 0]} />
+              </BarChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
