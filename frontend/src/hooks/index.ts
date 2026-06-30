@@ -8,4 +8,5 @@
 // Future hooks will be exported here, e.g.:
 // export { useApiQuery } from "./use-api-query";
 // export { useDebounce } from "./use-debounce";
-// export { useWebSocket } from "./use-websocket";
+export * from "./use-websocket";
+export * from "./use-camera-stream";
