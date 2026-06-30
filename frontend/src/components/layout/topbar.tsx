@@ -1,7 +1,8 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { Menu, Bell, User, Shield, ChevronDown } from "lucide-react";
+import { useTheme } from "next-themes";
+import { Menu, Bell, User, Shield, ChevronDown, Sun, Moon } from "lucide-react";
 import { navItems, APP_NAME } from "@/config/navigation";
 import Link from "next/link";
 
@@ -21,6 +22,7 @@ function getPageTitle(pathname: string): string {
 export function Topbar({ onMenuToggle }: TopbarProps) {
   const pathname = usePathname();
   const pageTitle = getPageTitle(pathname);
+  const { theme, setTheme } = useTheme();
 
   return (
     <header className="border-border bg-topbar-bg sticky top-0 z-30 flex h-16 items-center border-b backdrop-blur-xl">
@@ -55,6 +57,16 @@ export function Topbar({ onMenuToggle }: TopbarProps) {
 
         {/* Actions */}
         <div className="flex items-center gap-2 sm:gap-4">
+          {/* Theme Toggle */}
+          <button
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            className="text-muted hover:bg-surface hover:text-foreground flex h-9 w-9 items-center justify-center rounded-lg transition-colors"
+            aria-label="Toggle theme"
+          >
+            <Moon className="hidden h-5 w-5 dark:block" />
+            <Sun className="block h-5 w-5 dark:hidden" />
+          </button>
+
           {/* Notifications */}
           <button
             className="text-muted hover:bg-surface hover:text-foreground relative flex h-9 w-9 items-center justify-center rounded-lg transition-colors"
