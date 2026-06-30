@@ -1,4 +1,5 @@
 import { Radio, VideoOff, Clock, Activity } from "lucide-react";
+import { env } from "@/lib/env";
 
 interface CameraTileProps {
   id: string;
@@ -32,20 +33,16 @@ export function CameraTile({ id, name, status, fps, lastDetection }: CameraTileP
         </div>
       </div>
 
-      {/* Video Placeholder */}
-      <div className="relative flex aspect-video items-center justify-center bg-[#050505]">
+      {/* Video Placeholder or Live Stream */}
+      <div className="relative flex aspect-video items-center justify-center overflow-hidden bg-[#050505]">
         {status === "online" ? (
-          <Radio className="text-muted/50 animate-pulse-glow h-8 w-8" />
+          <img
+            src={`${env.apiUrl}/api/stream/${id}`}
+            alt={`${name} Live Feed`}
+            className="h-full w-full object-cover"
+          />
         ) : (
           <VideoOff className="text-muted/30 h-8 w-8" />
-        )}
-
-        {/* Mock bounding boxes for online state */}
-        {status === "online" && (
-          <>
-            <div className="border-success/40 bg-success/10 absolute top-[30%] left-[20%] h-1/3 w-1/4 rounded border" />
-            <div className="border-danger/40 bg-danger/10 absolute top-[40%] right-[25%] h-1/4 w-1/5 rounded border" />
-          </>
         )}
       </div>
 

@@ -1,38 +1,90 @@
-import type { Metadata } from "next";
-import { Radio } from "lucide-react";
+"use client";
+
+import useSWR from "swr";
+import { api } from "@/lib/api-client";
 import { PageHeader, CameraTile } from "@/components/ui";
+import { type Camera } from "@/types";
+import { Info } from "lucide-react";
 
-export const metadata: Metadata = {
-  title: "Live Feed",
-  description: "Real-time camera feeds and detection monitoring.",
-};
+const fetcher = (url: string) => api.get<Camera[]>(url);
 
-const mockCameras = [
-  { id: "CAM-001", name: "Main Entrance", status: "online", fps: 30, lastDetection: "2s ago" },
-  { id: "CAM-002", name: "Assembly Line A", status: "online", fps: 24, lastDetection: "Just now" },
-  { id: "CAM-003", name: "Loading Dock", status: "standby", fps: 0, lastDetection: "10m ago" },
-  { id: "CAM-004", name: "Warehouse B", status: "online", fps: 30, lastDetection: "1m ago" },
-  { id: "CAM-005", name: "Lab Area", status: "offline", fps: 0, lastDetection: "2h ago" },
-  { id: "CAM-006", name: "Perimeter East", status: "online", fps: 15, lastDetection: "5s ago" },
-] as const;
+export default function LiveDashboardPage() {
+  // Poll every 5 seconds for status updates
+  const {
+    data: cameras,
+    error,
+    isLoading,
+  } = useSWR("/api/cameras", fetcher, {
+    refreshInterval: 5000,
+  });
 
-export default function LivePage() {
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <PageHeader
+          title="Live Dashboard"
+          description="Real-time telemetry and streaming from all registered camera zones."
+          icon={Info}
+        />
+        <div className="flex h-64 items-center justify-center">
+          <p className="text-muted animate-pulse text-sm">Loading cameras...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <PageHeader
+          title="Live Dashboard"
+          description="Real-time telemetry and streaming from all registered camera zones."
+          icon={Info}
+        />
+        <div className="bg-danger/10 border-danger/20 rounded-xl border p-6">
+          <p className="text-danger text-sm font-medium">Failed to load camera feeds.</p>
+          <p className="text-muted mt-1 text-xs">{error.message}</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="mx-auto max-w-7xl">
+    <div className="space-y-6">
       <PageHeader
-        title="Live Feed"
-        description="Real-time camera streams with PPE detection overlay."
-        icon={Radio}
-        badge="Streaming"
-        badgeVariant="danger"
+        title="Live Dashboard"
+        description="Real-time telemetry and streaming from all registered camera zones."
+        icon={Info}
       />
 
-      {/* Camera grid */}
-      <div className="animate-fade-in stagger-1 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        {mockCameras.map((cam) => (
-          <CameraTile key={cam.id} {...cam} />
-        ))}
-      </div>
+      {cameras?.length === 0 ? (
+        <div className="glass flex h-64 flex-col items-center justify-center rounded-xl">
+          <p className="text-foreground text-sm font-medium">No cameras registered</p>
+          <p className="text-muted mt-1 text-xs">
+            Add a camera in the settings panel to begin streaming.
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {cameras?.map((cam) => {
+            // Map the backend status to the CameraTile status
+            let tileStatus: "online" | "offline" | "standby" = "offline";
+            if (cam.status === "RUNNING") tileStatus = "online";
+            if (cam.status === "REGISTERED" || cam.status === "STOPPED") tileStatus = "standby";
+
+            return (
+              <CameraTile
+                key={cam.id}
+                id={cam.id.split("-")[0]} // Show short UUID for cleaner UI
+                name={cam.name}
+                status={tileStatus}
+                fps={tileStatus === "online" ? 15 : 0} // Hardcode 15 for now, or fetch from metrics later
+                lastDetection="Live"
+              />
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

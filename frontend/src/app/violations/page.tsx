@@ -1,107 +1,212 @@
-import type { Metadata } from "next";
-import { ShieldAlert } from "lucide-react";
-import { PageHeader } from "@/components/ui";
+"use client";
 
-export const metadata: Metadata = {
-  title: "Violations",
-  description: "PPE compliance violations and incident management.",
-};
+import { useState } from "react";
+import useSWR from "swr";
+import { format } from "date-fns";
+import { FileText, Eye, AlertCircle, Info } from "lucide-react";
+import { api } from "@/lib/api-client";
+import {
+  PageHeader,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  Badge,
+  Button,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui";
+import { type Alert, type IncidentSummaryResponse } from "@/types";
 
-const mockViolations = [
-  { id: "VIO-001", zone: "Assembly Line A", type: "Missing Helmet", severity: "High", time: "—" },
-  {
-    id: "VIO-002",
-    zone: "Loading Dock",
-    type: "No Reflective Jacket",
-    severity: "Medium",
-    time: "—",
-  },
-  { id: "VIO-003", zone: "Warehouse B", type: "Missing Helmet", severity: "High", time: "—" },
-  { id: "VIO-004", zone: "Lab Area", type: "No Reflective Jacket", severity: "Low", time: "—" },
-  { id: "VIO-005", zone: "Main Entrance", type: "Missing Helmet", severity: "Medium", time: "—" },
-];
+const fetcherAlerts = () => api.get<Alert[]>("/api/alerts");
+const fetcherSummary = (id: string) =>
+  api.get<IncidentSummaryResponse>(`/api/incidents/${id}/summary`);
 
-const severityStyles = {
-  High: "bg-danger/15 text-danger",
-  Medium: "bg-warning/15 text-warning",
-  Low: "bg-accent-muted text-accent",
-} as const;
+function SummaryDialog({
+  incidentId,
+  open,
+  onOpenChange,
+}: {
+  incidentId: string | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  // Only fetch if dialog is open and ID exists
+  const { data: summary, isLoading } = useSWR(
+    open && incidentId ? incidentId : null,
+    fetcherSummary,
+  );
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <FileText className="text-accent h-5 w-5" />
+            AI Incident Report
+          </DialogTitle>
+          <DialogDescription>Auto-generated summary for incident {incidentId}</DialogDescription>
+        </DialogHeader>
+
+        <div className="py-4">
+          {isLoading ? (
+            <div className="flex h-32 items-center justify-center">
+              <p className="text-muted animate-pulse text-sm">
+                Generating natural language summary...
+              </p>
+            </div>
+          ) : summary ? (
+            <div className="space-y-6">
+              <div className="bg-surface-elevated/50 rounded-lg p-4 text-sm leading-relaxed">
+                {summary.summary}
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <p className="text-muted text-xs tracking-wider uppercase">Severity</p>
+                  <Badge
+                    variant={
+                      summary.severity === "HIGH"
+                        ? "destructive"
+                        : summary.severity === "MEDIUM"
+                          ? "warning"
+                          : "secondary"
+                    }
+                  >
+                    {summary.severity}
+                  </Badge>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-muted text-xs tracking-wider uppercase">Related Events</p>
+                  <p className="text-sm font-medium">{summary.related_events_count}</p>
+                </div>
+              </div>
+
+              {summary.recommendations.length > 0 && (
+                <div className="space-y-3 border-t border-[var(--color-border)] pt-4">
+                  <p className="text-muted text-xs tracking-wider uppercase">
+                    Actionable Recommendations
+                  </p>
+                  <ul className="space-y-2">
+                    {summary.recommendations.map((rec, i) => (
+                      <li key={i} className="flex items-start gap-2 text-sm">
+                        <AlertCircle className="text-warning mt-0.5 h-4 w-4 shrink-0" />
+                        <span>{rec}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="text-danger flex h-32 items-center justify-center text-sm">
+              Failed to load summary.
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 export default function ViolationsPage() {
+  const { data: alerts, isLoading } = useSWR("/api/alerts", fetcherAlerts, {
+    refreshInterval: 10000,
+  });
+
+  const [selectedIncident, setSelectedIncident] = useState<string | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+  const handleViewSummary = (id: string) => {
+    setSelectedIncident(id);
+    setIsDialogOpen(true);
+  };
+
   return (
-    <div className="mx-auto max-w-7xl">
+    <div className="space-y-6 pb-12">
       <PageHeader
-        title="Violations"
-        description="PPE compliance violations log and incident tracking."
-        icon={ShieldAlert}
-        badge={`${mockViolations.length} Open`}
-        badgeVariant="danger"
+        title="Safety Violations"
+        description="Historical log of all detected PPE non-compliance events."
+        icon={Info}
       />
 
-      {/* Filters placeholder */}
-      <div className="animate-fade-in stagger-1 mb-4 flex flex-wrap items-center gap-2">
-        {["All", "High", "Medium", "Low"].map((filter) => (
-          <button
-            key={filter}
-            className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
-              filter === "All"
-                ? "bg-accent-muted text-accent"
-                : "bg-surface text-muted hover:bg-surface-elevated hover:text-foreground"
-            }`}
-          >
-            {filter}
-          </button>
-        ))}
+      <div className="glass overflow-hidden rounded-xl">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-[180px]">Timestamp</TableHead>
+              <TableHead>Camera ID</TableHead>
+              <TableHead>Violation Type</TableHead>
+              <TableHead>Severity</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={5} className="text-muted h-24 text-center">
+                  Loading alerts...
+                </TableCell>
+              </TableRow>
+            ) : alerts?.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={5} className="text-muted h-24 text-center">
+                  No violations recorded.
+                </TableCell>
+              </TableRow>
+            ) : (
+              alerts?.map((alert) => (
+                <TableRow key={alert.id}>
+                  <TableCell className="font-mono text-xs">
+                    {format(new Date(alert.timestamp), "MMM d, HH:mm:ss")}
+                  </TableCell>
+                  <TableCell className="text-muted font-mono text-xs">
+                    {alert.camera_id.split("-")[0]}
+                  </TableCell>
+                  <TableCell className="font-medium">
+                    {alert.alert_type.replace(/_/g, " ")}
+                  </TableCell>
+                  <TableCell>
+                    <Badge
+                      variant={
+                        alert.severity === "high" || alert.severity === "critical"
+                          ? "destructive"
+                          : alert.severity === "medium"
+                            ? "warning"
+                            : "secondary"
+                      }
+                    >
+                      {alert.severity}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8"
+                      onClick={() => handleViewSummary(alert.id)}
+                    >
+                      <Eye className="mr-2 h-4 w-4" />
+                      View AI Summary
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
       </div>
 
-      {/* Violations table */}
-      <div className="animate-fade-in stagger-2 border-border bg-surface overflow-hidden rounded-xl border">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-border border-b text-left">
-                <th className="text-muted px-4 py-3 text-[11px] font-semibold tracking-wider uppercase">
-                  ID
-                </th>
-                <th className="text-muted px-4 py-3 text-[11px] font-semibold tracking-wider uppercase">
-                  Zone
-                </th>
-                <th className="text-muted px-4 py-3 text-[11px] font-semibold tracking-wider uppercase">
-                  Violation Type
-                </th>
-                <th className="text-muted px-4 py-3 text-[11px] font-semibold tracking-wider uppercase">
-                  Severity
-                </th>
-                <th className="text-muted px-4 py-3 text-[11px] font-semibold tracking-wider uppercase">
-                  Detected
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {mockViolations.map((v) => (
-                <tr
-                  key={v.id}
-                  className="border-border-subtle hover:bg-surface-elevated border-b transition-colors"
-                >
-                  <td className="text-accent px-4 py-3 font-mono text-xs">{v.id}</td>
-                  <td className="text-foreground px-4 py-3">{v.zone}</td>
-                  <td className="text-foreground px-4 py-3">{v.type}</td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${
-                        severityStyles[v.severity as keyof typeof severityStyles]
-                      }`}
-                    >
-                      {v.severity}
-                    </span>
-                  </td>
-                  <td className="text-muted px-4 py-3">{v.time}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <SummaryDialog
+        incidentId={selectedIncident}
+        open={isDialogOpen}
+        onOpenChange={setIsDialogOpen}
+      />
     </div>
   );
 }

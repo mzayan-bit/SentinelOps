@@ -42,6 +42,13 @@ export interface Incident {
   timestamp: number;
 }
 
+export interface IncidentSummaryResponse {
+  summary: string;
+  severity: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+  recommendations: string[];
+  related_events_count: number;
+}
+
 // ─── Analytics ───────────────────────────────────────────────────────────────
 
 export interface ViolationsPerDay {
@@ -66,11 +73,22 @@ export interface HourlyTrend {
   count: number;
 }
 
+export interface AnalyticsSummaryResponse {
+  violations_per_day: { data: ViolationsPerDay[] };
+  violations_per_camera: { data: ViolationsPerCamera[] };
+  compliance_rate: ComplianceRate;
+  hourly_trends: { data: HourlyTrend[] };
+}
+
 export interface Recommendation {
   title: string;
   description: string;
   priority: "HIGH" | "MEDIUM" | "LOW";
   category: string;
+}
+
+export interface RecommendationResponse {
+  recommendations: Recommendation[];
 }
 
 // ─── Search ──────────────────────────────────────────────────────────────────
