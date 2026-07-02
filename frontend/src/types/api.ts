@@ -140,3 +140,33 @@ export interface TaskStatus {
   result?: unknown;
   error?: string;
 }
+
+// ─── Platform Metrics ────────────────────────────────────────────────────────
+
+export interface GPUMetrics {
+  id: number;
+  name: string;
+  load_percent: number;
+  memory_percent: number;
+  temperature_celsius: number;
+}
+
+export interface SystemMetrics {
+  cpu_percent: number;
+  ram_percent: number;
+  gpu_available: boolean;
+  gpus: GPUMetrics[];
+}
+
+export interface ApplicationMetrics {
+  active_cameras: number;
+  total_cameras: number;
+  average_fps: number;
+  average_latency_ms: number;
+}
+
+export interface PlatformMetricsResponse {
+  timestamp: number;
+  system: SystemMetrics;
+  application: ApplicationMetrics;
+}
