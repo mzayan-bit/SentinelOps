@@ -1,8 +1,12 @@
 import uuid
 import logging
+import asyncio
 from enum import Enum
 from typing import Dict, List, Optional
 from dataclasses import dataclass, field
+
+from app.services.task_worker import task_worker
+from inference.tracker import VideoTracker
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +45,8 @@ class CameraManager:
     def __init__(self):
         # Maps camera UUID to the Camera instance
         self._cameras: Dict[uuid.UUID, Camera] = {}
+        # Maps camera UUID to its active VideoTracker instance
+        self._trackers: Dict[uuid.UUID, VideoTracker] = {}
 
     def add_camera(self, source: str, name: str) -> uuid.UUID:
         """
@@ -101,9 +107,26 @@ class CameraManager:
             logger.info(f"Camera {camera_id} is already running.")
             return True
             
-        # Placeholder for actual thread/process startup logic
         camera.status = CameraStatus.RUNNING
         logger.info(f"Started camera {camera_id} ({camera.name})")
+
+        # Start the video tracker in the background
+        tracker = VideoTracker()
+        self._trackers[camera_id] = tracker
+        
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = asyncio.get_event_loop()
+
+        task_worker.submit(
+            tracker.process_video,
+            input_path=camera.source,
+            camera_id=str(camera_id),
+            loop=loop,
+            task_type="camera_stream"
+        )
+        
         return True
 
     def stop_camera(self, camera_id: uuid.UUID) -> bool:
@@ -127,9 +150,14 @@ class CameraManager:
             logger.info(f"Camera {camera_id} is not currently running.")
             return True
             
-        # Placeholder for actual thread/process teardown logic
         camera.status = CameraStatus.STOPPED
         logger.info(f"Stopped camera {camera_id} ({camera.name})")
+        
+        # Stop the tracker loop
+        if camera_id in self._trackers:
+            self._trackers[camera_id].stop()
+            del self._trackers[camera_id]
+            
         return True
 
     def get_camera_status(self, camera_id: uuid.UUID) -> Optional[CameraStatus]:

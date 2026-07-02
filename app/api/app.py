@@ -51,7 +51,9 @@ async def lifespan(app: FastAPI):
     
     # Enable API key authentication in production/runtime (skip if testing)
     import os
-    if not os.getenv("TESTING"):
+    if os.getenv("TESTING"):
+        set_auth_enabled(False)
+    else:
         set_auth_enabled(True)
     
     logger.info("SentinelOps Alert Management API starting …")

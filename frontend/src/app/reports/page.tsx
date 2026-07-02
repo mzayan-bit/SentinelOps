@@ -149,7 +149,7 @@ export default function ReportsPage() {
             ) : !reports || reports.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={5} className="h-24 text-center text-[var(--color-muted)]">
-                  No reports generated yet. Click "Generate Report" to begin.
+                  No reports generated yet. Click &quot;Generate Report&quot; to begin.
                 </TableCell>
               </TableRow>
             ) : (

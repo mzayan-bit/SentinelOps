@@ -130,7 +130,7 @@ export default function LiveDashboardPage() {
             return (
               <CameraTile
                 key={cam.id}
-                id={cam.id.split("-")[0]}
+                id={cam.id}
                 name={cam.name}
                 status={tileStatus}
                 fps={tileStatus === "online" ? 15 : 0}

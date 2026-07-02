@@ -21,7 +21,7 @@ export function useWebSocket({
   const reconnectCountRef = useRef(0);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const connect = useCallback(() => {
+  const connect = useCallback(function connect() {
     if (!url) return;
 
     setStatus("CONNECTING");

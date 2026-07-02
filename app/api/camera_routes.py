@@ -6,11 +6,16 @@ from app.services.camera_manager import CameraManager
 from app.services.health_monitor import health_monitor, CameraHealth
 from app.services.cache_service import cached, invalidate_prefix
 from schemas.camera import CameraCreate, CameraResponse
+from app.services.task_worker import task_worker
 
 router = APIRouter(prefix="/api/cameras", tags=["Cameras"])
 
 # Global singleton for the lifetime of the application
 camera_manager = CameraManager()
+
+@router.get("/debug/tasks", summary="List background tasks (Debug)")
+async def debug_tasks():
+    return {"tasks": task_worker.list_tasks()}
 
 @router.get("", response_model=List[CameraResponse], summary="List all cameras")
 @cached(prefix="cameras:", ttl_seconds=5)

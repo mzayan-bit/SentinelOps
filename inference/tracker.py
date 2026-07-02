@@ -18,9 +18,11 @@ Usage::
 
 from __future__ import annotations
 
+import threading
+import base64
+import asyncio
 import time
 from pathlib import Path
-
 import cv2
 
 from inference.model_loader import ModelLoader
@@ -29,6 +31,7 @@ from inference.track_history import TrackHistoryManager
 from inference.zone_engine import ZoneEngine
 from inference.heatmap_generator import HeatmapGenerator
 from inference.privacy_engine import PrivacyEngine
+from app.services.stream_manager import stream_manager
 from config.settings import settings
 from utils.logger import get_logger
 
@@ -39,23 +42,16 @@ DEFAULT_TRACKER: str = "bytetrack.yaml"
 
 
 class VideoTracker:
-    """Video inference service with object tracking.
-
-    Uses the singleton :class:`ModelLoader` to obtain the YOLO model and
-    applies the internal ``.track()`` mechanism (e.g., ByteTrack) to maintain
-    IDs across frames. Also tracks PPE compliance history per person.
-
-    Parameters
-    ----------
-    confidence : float
-        Minimum confidence threshold for detections.
-    """
-
     def __init__(self, confidence: float = DEFAULT_CONFIDENCE) -> None:
         self._loader = ModelLoader()
         self._confidence = confidence
         self.track_history = TrackHistoryManager()
         self._compliance_engine = ComplianceEngine()
+        self._stop_event = threading.Event()
+
+    def stop(self) -> None:
+        """Signal the tracking loop to stop."""
+        self._stop_event.set()
 
     def process_video(
         self,
@@ -65,29 +61,9 @@ class VideoTracker:
         tracker_type: str = DEFAULT_TRACKER,
         zones: list[dict] | None = None,
         privacy_mode: bool | None = None,
+        camera_id: str | None = None,
+        loop: asyncio.AbstractEventLoop | None = None,
     ) -> None:
-        """Run tracking on a video file.
-
-        Parameters
-        ----------
-        input_path : str | Path
-            Path to the source video file.
-        output_path : str | Path | None
-            If provided, the annotated video will be saved here.
-        show : bool
-            If True, display the video live using OpenCV window.
-        tracker_type : str
-            Tracking algorithm config. Usually 'bytetrack.yaml' or 'botsort.yaml'.
-        zones: list[dict] | None
-            Configured polygon zones for evaluation.
-        privacy_mode : bool | None
-            If True, faces will be blurred in the output video. If None, checks settings.
-
-        Raises
-        ------
-        FileNotFoundError
-            If ``input_path`` does not exist or OpenCV cannot open it.
-        """
         input_p = Path(input_path)
         if not input_p.exists():
             raise FileNotFoundError(f"Video file not found: {input_p}")
@@ -98,7 +74,6 @@ class VideoTracker:
         if not cap.isOpened():
             raise FileNotFoundError(f"OpenCV failed to open video stream: {input_p}")
 
-        # Reset history for a fresh video run
         self.track_history = TrackHistoryManager()
         zone_engine = ZoneEngine(zones or [])
         zone_violations_count = 0
@@ -121,33 +96,39 @@ class VideoTracker:
         if output_path:
             out_p = Path(output_path)
             out_p.parent.mkdir(parents=True, exist_ok=True)
-            # Use mp4v for standard MP4 writing
             fourcc = cv2.VideoWriter_fourcc(*"mp4v")
             writer = cv2.VideoWriter(str(out_p), fourcc, fps, (width, height))
             logger.info("Saving annotated output to '%s'", out_p)
 
-        # Privacy mode configuration
         use_privacy = privacy_mode if privacy_mode is not None else settings.enable_privacy_mode
         privacy_engine = PrivacyEngine() if use_privacy else None
 
         frame_count = 0
         t0 = time.perf_counter()
+        
+        # Determine actual FPS for loop pacing (fallback to 30)
+        actual_fps = fps if fps and fps > 0 else 30.0
+        frame_time = 1.0 / actual_fps
 
         try:
             heatmap_generator: HeatmapGenerator | None = None
             
-            while True:
+            while not self._stop_event.is_set():
+                loop_start = time.perf_counter()
+                
                 success, frame = cap.read()
                 if not success:
-                    break
+                    # Loop video for continuous testing if we hit the end
+                    cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                    success, frame = cap.read()
+                    if not success:
+                        break
 
                 frame_count += 1
                 
                 if frame_count == 1:
                     heatmap_generator = HeatmapGenerator(width, height, background_frame=frame)
 
-                # model.track() automatically handles ByteTrack and assigns 'id'
-                # to the boxes if persist=True.
                 results = model.track(
                     frame,
                     persist=True,
@@ -157,72 +138,81 @@ class VideoTracker:
                 )
                 
                 annotated_frame = frame
+                current_violations = 0
+                
                 if results and len(results) > 0:
                     result = results[0]
-                    # Evaluate compliance and update history
                     assessments = self._compliance_engine.evaluate_frame(result)
                     self.track_history.update_from_assessments(assessments)
                     
-                    # Feed Heatmaps
+                    for a in assessments:
+                        if a.status != ComplianceStatus.SAFE:
+                            current_violations += 1
+                    
                     if heatmap_generator and result.boxes is not None:
                         for idx, box in enumerate(result.boxes):
-                            # Bottom-center coordinate for movement
                             xyxy = box.xyxy[0].tolist()
                             x_min, y_min, x_max, y_max = xyxy
                             bx = (x_min + x_max) / 2.0
                             by = y_max
                             heatmap_generator.add_movement_point(bx, by)
-                            
-                            # Check if this specific box had a violation this frame
                             if idx < len(assessments) and assessments[idx].status != ComplianceStatus.SAFE:
                                 heatmap_generator.add_violation_point(bx, by)
                     
-                    # Evaluate zone entry/dwell time
                     zone_violations = zone_engine.evaluate_frame(result)
                     for v in zone_violations:
                         zone_violations_count += 1
-                        logger.warning(
-                            f"[Zone Breach] Person {v.track_id} in {v.zone_name} (Dwell: {v.dwell_time:.1f}s)"
-                        )
 
-                    # YOLO's built-in plotting helper
                     annotated_frame = result.plot()
 
-                # Apply Privacy Face Blurring (if enabled)
                 if privacy_engine:
                     annotated_frame = privacy_engine.apply_privacy(annotated_frame)
 
-                # Visualization / Export
+                # Broadcast to WebSockets
+                if camera_id and loop:
+                    # Resize to 640x360 and compress heavily to prevent WebSocket buffer bloat
+                    resized = cv2.resize(annotated_frame, (640, 360))
+                    _, buffer = cv2.imencode(".jpg", resized, [int(cv2.IMWRITE_JPEG_QUALITY), 60])
+                    frame_b64 = base64.b64encode(buffer).decode("utf-8")
+                    payload = {
+                        "frame": frame_b64,
+                        "fps": actual_fps,
+                        "violation_count": current_violations,
+                        "detections": []
+                    }
+                    future = asyncio.run_coroutine_threadsafe(
+                        stream_manager.broadcast(camera_id, payload), loop
+                    )
+                    try:
+                        # Wait for the broadcast to finish to provide backpressure
+                        future.result(timeout=1.0)
+                    except Exception as e:
+                        logger.warning(f"Failed to broadcast frame: {e}")
+
                 if writer:
                     writer.write(annotated_frame)
 
                 if show:
                     cv2.imshow("SentinelOps Pipeline", annotated_frame)
                     if cv2.waitKey(1) & 0xFF == ord("q"):
-                        logger.info("User interrupted video playback.")
                         break
+                        
+                # Pace the loop to simulate real-time playback
+                elapsed = time.perf_counter() - loop_start
+                sleep_time = frame_time - elapsed
+                if sleep_time > 0:
+                    time.sleep(sleep_time)
 
         finally:
             elapsed = time.perf_counter() - t0
-            actual_fps = frame_count / elapsed if elapsed > 0 else 0
+            avg_fps = frame_count / elapsed if elapsed > 0 else 0
 
-            logger.info(
-                "Tracking complete: processed %d frames in %.1fs (%.1f FPS)",
-                frame_count,
-                elapsed,
-                actual_fps,
-            )
-            
-            # Log the person tracking history summary
+            logger.info("Tracking complete: processed %d frames (%.1f FPS)", frame_count, avg_fps)
             self.track_history.log_summary()
             
-            # Generate and save Heatmaps
             if heatmap_generator:
                 try:
-                    heatmap_generator.save_heatmaps(
-                        output_dir="artifacts/heatmaps", 
-                        prefix=input_p.stem
-                    )
+                    heatmap_generator.save_heatmaps(output_dir="artifacts/heatmaps", prefix=input_p.stem)
                 except Exception as e:
                     logger.error(f"Failed to generate heatmaps: {e}")
 

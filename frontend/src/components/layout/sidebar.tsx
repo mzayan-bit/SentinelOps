@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Shield, PanelLeftClose, PanelLeft } from "lucide-react";
 import clsx from "clsx";
 import { navItems, APP_NAME } from "@/config/navigation";
+import { useHealth } from "@/hooks";
 
 interface SidebarProps {
   collapsed: boolean;
@@ -13,6 +14,7 @@ interface SidebarProps {
 
 export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
+  const { isOnline, isLoading } = useHealth();
 
   return (
     <aside
@@ -100,14 +102,20 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       <div className="border-border space-y-2 border-t px-2 py-3">
         {/* System status */}
         <div className={clsx("flex items-center gap-2 px-3", collapsed && "justify-center")}>
-          <span className="status-dot status-dot--online shrink-0" />
+          <span 
+            className={clsx(
+              "status-dot shrink-0 transition-colors",
+              isOnline ? "status-dot--online" : "status-dot--offline"
+            )} 
+          />
           <span
             className={clsx(
-              "text-muted text-[11px] transition-opacity duration-200",
+              "text-[11px] transition-opacity duration-200",
+              isOnline ? "text-muted" : "text-danger font-medium",
               collapsed ? "w-0 overflow-hidden opacity-0" : "opacity-100",
             )}
           >
-            System Online
+            {isLoading ? "Connecting..." : isOnline ? "System Online" : "System Offline"}
           </span>
         </div>
 

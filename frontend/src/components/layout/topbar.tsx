@@ -2,9 +2,12 @@
 
 import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
-import { Menu, Bell, User, Shield, ChevronDown, Sun, Moon } from "lucide-react";
+import { Menu, Shield, Sun, Moon } from "lucide-react";
 import { navItems, APP_NAME } from "@/config/navigation";
 import Link from "next/link";
+
+import { NotificationsPopover } from "./notifications-popover";
+import { UserDropdown } from "./user-dropdown";
 
 interface TopbarProps {
   onMenuToggle: () => void;
@@ -67,29 +70,11 @@ export function Topbar({ onMenuToggle }: TopbarProps) {
             <Sun className="block h-5 w-5 dark:hidden" />
           </button>
 
-          {/* Notifications */}
-          <button
-            className="text-muted hover:bg-surface hover:text-foreground relative flex h-9 w-9 items-center justify-center rounded-lg transition-colors"
-            aria-label="Notifications"
-          >
-            <Bell className="h-5 w-5" />
-            <span className="bg-danger animate-pulse-glow absolute top-2 right-2 h-2 w-2 rounded-full" />
-          </button>
+          <NotificationsPopover />
 
-          {/* Divider */}
           <div className="bg-border h-6 w-px" />
 
-          {/* Profile Dropdown Placeholder */}
-          <button className="hover:bg-surface flex items-center gap-2 rounded-lg p-1 text-left transition-colors">
-            <div className="bg-accent-muted text-accent flex h-8 w-8 items-center justify-center rounded-full">
-              <User className="h-4 w-4" />
-            </div>
-            <div className="hidden md:flex md:flex-col">
-              <span className="text-foreground text-sm font-medium">Admin User</span>
-              <span className="text-muted text-[10px] tracking-wider uppercase">Operator</span>
-            </div>
-            <ChevronDown className="text-muted hidden h-4 w-4 md:block" />
-          </button>
+          <UserDropdown />
         </div>
       </div>
     </header>

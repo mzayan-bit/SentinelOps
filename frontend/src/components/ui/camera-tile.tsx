@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useRef } from "react";
 import { Radio, VideoOff, Clock, Activity, Maximize, AlertTriangle } from "lucide-react";
-import { env } from "@/lib/env";
+import { useCameraStream } from "@/hooks";
 
 interface CameraTileProps {
   id: string;
@@ -34,25 +34,8 @@ export function CameraTile({ id, name, status, lastDetection }: CameraTileProps)
   const config = statusConfig[status];
   const videoRef = useRef<HTMLDivElement>(null);
 
-  // Simulated telemetry for the UI
-  const [liveFps, setLiveFps] = useState(0);
-  const [violations, setViolations] = useState(0);
-
-  useEffect(() => {
-    if (status !== "online") {
-      setLiveFps(0);
-      return;
-    }
-
-    // Simulate FPS jitter and occasional violations
-    const interval = setInterval(() => {
-      setLiveFps(Math.floor(Math.random() * (30 - 24 + 1)) + 24); // 24-30 FPS
-      if (Math.random() > 0.95) {
-        setViolations((v) => v + 1);
-      }
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [status]);
+  // Use the real websocket stream hook!
+  const { frame, fps: liveFps, violationCount } = useCameraStream(status === "online" ? id : null);
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
@@ -70,14 +53,14 @@ export function CameraTile({ id, name, status, lastDetection }: CameraTileProps)
         <div className="flex flex-col">
           <span className="text-sm font-semibold text-[var(--color-foreground)]">{name}</span>
           <span className="font-mono text-[10px] tracking-wider text-[var(--color-muted)] uppercase">
-            {id}
+            {id.split("-")[0]}
           </span>
         </div>
         <div className="flex items-center gap-2">
-          {violations > 0 && (
+          {violationCount > 0 && (
             <div className="animate-in fade-in zoom-in flex items-center gap-1 rounded bg-[var(--color-danger)]/10 px-2 py-0.5 text-[10px] font-bold text-[var(--color-danger)]">
               <AlertTriangle className="h-3 w-3" />
-              {violations}
+              {violationCount}
             </div>
           )}
           <div
@@ -94,9 +77,9 @@ export function CameraTile({ id, name, status, lastDetection }: CameraTileProps)
         ref={videoRef}
         className="group/video relative flex aspect-video items-center justify-center overflow-hidden bg-[#050505]"
       >
-        {status === "online" ? (
+        {status === "online" && frame ? (
           <img
-            src={`${env.apiUrl}/api/stream/${id}`}
+            src={`data:image/jpeg;base64,${frame}`}
             alt={`${name} Live Feed`}
             className="h-full w-full object-cover"
           />
@@ -119,7 +102,7 @@ export function CameraTile({ id, name, status, lastDetection }: CameraTileProps)
       <div className="flex items-center justify-between border-t border-[var(--color-border)] bg-[var(--color-surface)] p-3">
         <div className="flex items-center gap-1.5 text-xs text-[var(--color-muted)]">
           <Activity className="h-3.5 w-3.5" />
-          <span className="font-mono">{status === "online" ? liveFps : 0} FPS</span>
+          <span className="font-mono">{status === "online" ? Math.round(liveFps) : 0} FPS</span>
         </div>
         <div className="flex items-center gap-1.5 text-xs text-[var(--color-muted)]">
           <Clock className="h-3.5 w-3.5" />

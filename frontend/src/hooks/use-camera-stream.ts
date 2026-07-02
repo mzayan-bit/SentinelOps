@@ -10,7 +10,7 @@ export function useCameraStream(cameraId: string | null) {
 
   // Construct the ws:// URL from the api url
   // Note: Since env.apiUrl is likely http://localhost:8000, we replace http with ws.
-  const wsUrl = cameraId ? `${env.apiUrl.replace(/^http/, "ws")}/api/ws/stream/${cameraId}` : null;
+  const wsUrl = cameraId ? `${env.apiUrl.replace(/^http/, "ws")}/ws/stream/${cameraId}` : null;
 
   const handleMessage = useCallback((data: string) => {
     try {
