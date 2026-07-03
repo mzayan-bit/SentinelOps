@@ -28,6 +28,7 @@ from app.api.metrics_routes import router as metrics_router
 from app.api.task_routes import router as task_router
 from app.api.zone_routes import router as zone_router
 from app.api.search_routes import router as search_router
+from app.api.model_routes import router as model_router
 from app.auth import set_auth_enabled
 from app.services.task_worker import task_worker
 
@@ -90,6 +91,7 @@ app.include_router(metrics_router)
 app.include_router(task_router)
 app.include_router(zone_router)
 app.include_router(search_router)
+app.include_router(model_router)
 
 
 @app.get("/health", tags=["System"])

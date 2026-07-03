@@ -14,3 +14,8 @@ class RegisteredModel(BaseModel):
     description: str = Field(default="", description="Description of the model")
     metrics: dict[str, Any] = Field(default_factory=dict, description="Performance metrics (e.g., mAP, inference time)")
     active: bool = Field(default=False, description="Whether this is the currently active model")
+
+class ModelSwitchRequest(BaseModel):
+    """Schema for requesting an active model switch."""
+    name: str = Field(..., description="Unique name of the model to switch to")
+    version: str = Field(..., description="Version tag of the model to switch to")
