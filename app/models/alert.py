@@ -71,6 +71,7 @@ class AlertBase(BaseModel):
     confidence: float = Field(..., ge=0.0, le=1.0, description="Detection confidence.")
     image_path: str | None = Field(default=None, description="Path to evidence image.")
     video_clip_path: str | None = Field(default=None, description="Path to evidence video clip.")
+    worker_id: str | None = Field(default=None, description="Tracked worker / entity ID that triggered the violation.")
     notes: str = Field(default="", description="Investigation notes.")
 
 
@@ -102,12 +103,14 @@ class Alert(AlertBase):
     status: AlertStatus = Field(default=AlertStatus.NEW)
     assigned_to: str | None = Field(default=None, description="Assigned investigator.")
     resolved_at: datetime | None = Field(default=None, description="Resolution timestamp.")
+    duplicate_count: int = Field(default=0, description="Number of deduplicated occurrences.")
+    last_seen_at: datetime | None = Field(default=None, description="Timestamp of the most recent duplicate occurrence.")
 
     def to_dict(self) -> dict[str, Any]:
         """Serialise to a JSON-safe dictionary."""
         data = self.model_dump()
         # Convert datetime to ISO strings for JSON
-        for key in ("timestamp", "resolved_at"):
+        for key in ("timestamp", "resolved_at", "last_seen_at"):
             if data.get(key) is not None:
                 data[key] = data[key].isoformat()
         return data

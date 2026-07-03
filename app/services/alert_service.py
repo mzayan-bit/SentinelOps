@@ -113,39 +113,115 @@ class AlertService:
         short_uuid = uuid.uuid4().hex[:8]
         return f"ALR-{ts}-{short_uuid}"
 
+    # -- Deduplication -----------------------------------------------------
+
+    def _find_duplicate(self, payload: AlertCreate) -> str | None:
+        """Find an existing alert that matches the dedup key within cooldown.
+
+        Dedup key: (camera_id, alert_type, worker_id).
+        Returns the alert_id of the duplicate, or None.
+        """
+        cooldown = settings.alert_cooldown_seconds
+        if cooldown <= 0:
+            return None
+
+        now = datetime.now(timezone.utc)
+
+        for alert_id, entry in self._index.items():
+            # Match on dedup key
+            if entry.get("camera_id") != payload.camera_id:
+                continue
+            if entry.get("alert_type") != payload.alert_type.value:
+                continue
+            if entry.get("worker_id") != payload.worker_id:
+                continue
+            # Only deduplicate against active (non-resolved) alerts
+            if entry.get("status") in (AlertStatus.RESOLVED.value, AlertStatus.FALSE_POSITIVE.value):
+                continue
+
+            # Check cooldown window
+            last_seen_str = entry.get("last_seen_at") or entry.get("timestamp")
+            if last_seen_str:
+                last_seen = datetime.fromisoformat(last_seen_str)
+                elapsed = (now - last_seen).total_seconds()
+                if elapsed < cooldown:
+                    return alert_id
+
+        return None
+
+    def _build_index_entry(self, alert: Alert) -> dict[str, Any]:
+        """Build a consistent index entry from an Alert object."""
+        return {
+            "timestamp": alert.timestamp.isoformat(),
+            "camera_id": alert.camera_id,
+            "alert_type": alert.alert_type.value,
+            "severity": alert.severity.value,
+            "status": alert.status.value,
+            "confidence": alert.confidence,
+            "assigned_to": alert.assigned_to,
+            "worker_id": alert.worker_id,
+            "duplicate_count": alert.duplicate_count,
+            "last_seen_at": alert.last_seen_at.isoformat() if alert.last_seen_at else None,
+        }
+
     # -- CRUD --------------------------------------------------------------
 
     def create(self, payload: AlertCreate) -> Alert:
-        """Create and persist a new alert.
+        """Create a new alert, or deduplicate into an existing one.
 
-        Returns the full ``Alert`` with generated ``alert_id`` and timestamp.
+        If a matching alert exists within the cooldown window, the existing
+        alert's ``duplicate_count`` is incremented and ``last_seen_at`` is
+        updated instead of creating a new record.
+
+        Returns the full ``Alert`` (new or updated).
         """
+        now = datetime.now(timezone.utc)
+
+        with self._lock:
+            # ---- Deduplication check ----
+            dup_id = self._find_duplicate(payload)
+            if dup_id is not None:
+                existing = self._read_alert(dup_id)
+                alert_dict = existing.to_dict()
+                alert_dict["duplicate_count"] = existing.duplicate_count + 1
+                alert_dict["last_seen_at"] = now.isoformat()
+                # Update confidence to the latest (higher-is-better)
+                alert_dict["confidence"] = max(existing.confidence, payload.confidence)
+                updated = Alert(**alert_dict)
+                self._save_alert(updated)
+                self._index[dup_id] = self._build_index_entry(updated)
+                self._save_index()
+
+                logger.info(
+                    "Alert deduplicated: %s (count=%d) camera=%s worker=%s",
+                    dup_id,
+                    updated.duplicate_count,
+                    updated.camera_id,
+                    updated.worker_id,
+                )
+                return updated
+
+        # ---- No duplicate: create a fresh alert ----
         alert = Alert(
             alert_id=self._generate_id(),
-            timestamp=datetime.now(timezone.utc),
+            timestamp=now,
             status=AlertStatus.NEW,
+            last_seen_at=now,
             **payload.model_dump(),
         )
 
         with self._lock:
             self._save_alert(alert)
-            self._index[alert.alert_id] = {
-                "timestamp": alert.timestamp.isoformat(),
-                "camera_id": alert.camera_id,
-                "alert_type": alert.alert_type.value,
-                "severity": alert.severity.value,
-                "status": alert.status.value,
-                "confidence": alert.confidence,
-                "assigned_to": alert.assigned_to,
-            }
+            self._index[alert.alert_id] = self._build_index_entry(alert)
             self._save_index()
 
         logger.info(
-            "Alert created: %s [%s] severity=%s camera=%s",
+            "Alert created: %s [%s] severity=%s camera=%s worker=%s",
             alert.alert_id,
             alert.alert_type.value,
             alert.severity.value,
             alert.camera_id,
+            alert.worker_id,
         )
 
         # Fire-and-forget: persist to PostgreSQL in the background
@@ -232,15 +308,7 @@ class AlertService:
             updated = Alert(**alert_dict)
 
             self._save_alert(updated)
-            self._index[alert_id] = {
-                "timestamp": updated.timestamp.isoformat(),
-                "camera_id": updated.camera_id,
-                "alert_type": updated.alert_type.value,
-                "severity": updated.severity.value,
-                "status": updated.status.value,
-                "confidence": updated.confidence,
-                "assigned_to": updated.assigned_to,
-            }
+            self._index[alert_id] = self._build_index_entry(updated)
             self._save_index()
 
         logger.info("Alert updated: %s", alert_id)
@@ -301,15 +369,7 @@ class AlertService:
 
             updated = Alert(**alert_dict)
             self._save_alert(updated)
-            self._index[alert_id] = {
-                "timestamp": updated.timestamp.isoformat(),
-                "camera_id": updated.camera_id,
-                "alert_type": updated.alert_type.value,
-                "severity": updated.severity.value,
-                "status": updated.status.value,
-                "confidence": updated.confidence,
-                "assigned_to": updated.assigned_to,
-            }
+            self._index[alert_id] = self._build_index_entry(updated)
             self._save_index()
 
         logger.info("Alert resolved: %s → %s", alert_id, new_status.value)
