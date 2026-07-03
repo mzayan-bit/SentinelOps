@@ -93,7 +93,13 @@ class PredictionService:
         if not path.exists():
             raise FileNotFoundError(f"Image not found: {path}")
 
-        conf = confidence if confidence is not None else self._default_conf
+        from app.services.threshold_service import threshold_service
+        
+        if confidence is not None:
+            min_conf = confidence
+        else:
+            min_conf = threshold_service.get_min_threshold()
+
         model = self._loader.get_model()
 
         # Load image
@@ -106,13 +112,13 @@ class PredictionService:
         t0 = time.perf_counter()
         results = model.predict(
             source=img_array,
-            conf=conf,
+            conf=min_conf,
             imgsz=self._input_size,
             verbose=False,
         )
         elapsed_ms = (time.perf_counter() - t0) * 1000
 
-        detections = self._parse_results(results, model)
+        detections = self._parse_results(results, model, explicit_confidence=confidence)
 
         logger.info(
             "Inference complete: %d detection(s) in %.1f ms",
@@ -137,8 +143,10 @@ class PredictionService:
     def _parse_results(
         results: list,
         model: Any,
+        explicit_confidence: float | None = None
     ) -> list[dict[str, Any]]:
         """Convert raw YOLO results into a list of detection dicts."""
+        from app.services.threshold_service import threshold_service
         detections: list[dict[str, Any]] = []
 
         if not results:
@@ -147,16 +155,28 @@ class PredictionService:
         class_names: dict[int, str] = getattr(model, "names", {})
         boxes = results[0].boxes
 
+        config = threshold_service.get_config()
+
         for box in boxes:
             xyxy = box.xyxy[0].tolist()
             cls_id = int(box.cls[0].item())
             conf = float(box.conf[0].item())
+            class_name = class_names.get(cls_id, f"class_{cls_id}")
+            
+            # Filter dynamically
+            if explicit_confidence is not None:
+                required_conf = explicit_confidence
+            else:
+                required_conf = config.per_class.get(class_name, config.global_threshold)
+
+            if conf < required_conf:
+                continue
 
             x_min, y_min, x_max, y_max = xyxy
 
             detections.append({
                 "class_id": cls_id,
-                "class_name": class_names.get(cls_id, f"class_{cls_id}"),
+                "class_name": class_name,
                 "confidence": round(conf, 4),
                 "bounding_box": {
                     "x_min": round(x_min, 2),
