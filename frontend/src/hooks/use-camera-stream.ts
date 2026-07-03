@@ -21,8 +21,7 @@ export function useCameraStream(cameraId: string | null) {
     }
   }, []);
 
-  const { status } = useWebSocket({
-    url: wsUrl,
+  const { status } = useWebSocket(wsUrl, {
     onMessage: handleMessage,
   });
 

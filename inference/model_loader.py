@@ -50,9 +50,17 @@ class ModelLoader:
                 if cls._instance is None:
                     cls._instance = super().__new__(cls)
                     cls._instance._model: YOLO | None = None
-                    cls._instance._model_path: Path = Path(
-                        os.getenv("MODEL_PATH", DEFAULT_MODEL_PATH)
-                    )
+                    
+                    # Try to load the active model from the registry
+                    from app.services.model_registry import model_registry_service
+                    active_model = model_registry_service.get_active_model()
+                    
+                    if active_model:
+                        default_path = active_model.path
+                    else:
+                        default_path = os.getenv("MODEL_PATH", DEFAULT_MODEL_PATH)
+                        
+                    cls._instance._model_path: Path = Path(default_path)
         return cls._instance
 
     # -- Public API --------------------------------------------------------
@@ -80,6 +88,23 @@ class ModelLoader:
                 if self._model is None:
                     self._model = self._load()
         return self._model
+
+    def switch_model(self, model_path: str | Path) -> None:
+        """Dynamically switch the active YOLO model in-memory.
+
+        Parameters
+        ----------
+        model_path : str | Path
+            Path to the new YOLO weights file.
+        """
+        with self._lock:
+            new_path = Path(model_path)
+            if not new_path.exists():
+                raise ModelNotFoundError(f"Model weights not found at '{new_path}'.")
+            
+            logger.info("Switching YOLO model to '%s' …", new_path)
+            self._model_path = new_path
+            self._model = self._load()
 
     # -- Internal ----------------------------------------------------------
 
