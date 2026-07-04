@@ -122,7 +122,8 @@ class AlertService:
         Dedup key: (camera_id, alert_type, worker_id).
         Returns the alert_id of the duplicate, or None.
         """
-        cooldown = settings.alert_cooldown_seconds
+        alert_type_val = payload.alert_type.value
+        cooldown = settings.alert_cooldown_profiles.get(alert_type_val, settings.alert_cooldown_seconds)
         if cooldown <= 0:
             return None
 

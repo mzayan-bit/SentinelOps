@@ -59,6 +59,7 @@ class Settings(BaseSettings):
     device: str = Field(default="auto")
     enable_privacy_mode: bool = Field(default=False, description="Blur faces in output video/snapshots")
     alert_cooldown_seconds: int = Field(default=60, ge=0, description="Cooldown period (seconds) to suppress duplicate alerts for the same worker/camera/type.")
+    alert_cooldown_profiles: dict[str, int] = Field(default_factory=dict, description="Cooldown overrides by alert type (in seconds).")
     escalate_to_medium_threshold: int = Field(default=3, description="Duplicates needed to escalate to Medium")
     escalate_to_high_threshold: int = Field(default=5, description="Duplicates needed to escalate to High")
     escalate_to_critical_threshold: int = Field(default=10, description="Duplicates needed to escalate to Critical")

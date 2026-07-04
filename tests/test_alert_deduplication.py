@@ -43,6 +43,7 @@ def _make_payload(**overrides) -> AlertCreate:
 def test_duplicate_within_cooldown_increments_count(mock_settings, tmp_path):
     """Firing the same alert twice within the cooldown should NOT create two records."""
     mock_settings.alert_cooldown_seconds = 60
+    mock_settings.alert_cooldown_profiles = {}
     mock_settings.alerts_dir = tmp_path
     mock_settings.escalate_to_medium_threshold = 3
     mock_settings.escalate_to_high_threshold = 5
@@ -67,6 +68,7 @@ def test_duplicate_within_cooldown_increments_count(mock_settings, tmp_path):
 def test_duplicate_keeps_highest_confidence(mock_settings, tmp_path):
     """Deduplication should keep the maximum confidence seen so far."""
     mock_settings.alert_cooldown_seconds = 60
+    mock_settings.alert_cooldown_profiles = {}
     mock_settings.alerts_dir = tmp_path
     mock_settings.escalate_to_medium_threshold = 3
     mock_settings.escalate_to_high_threshold = 5
@@ -88,6 +90,7 @@ def test_duplicate_keeps_highest_confidence(mock_settings, tmp_path):
 def test_different_worker_creates_new_alert(mock_settings, tmp_path):
     """Alerts from different workers should never be deduplicated together."""
     mock_settings.alert_cooldown_seconds = 60
+    mock_settings.alert_cooldown_profiles = {}
     mock_settings.alerts_dir = tmp_path
     mock_settings.escalate_to_medium_threshold = 3
     mock_settings.escalate_to_high_threshold = 5
@@ -110,6 +113,7 @@ def test_different_worker_creates_new_alert(mock_settings, tmp_path):
 def test_alert_after_cooldown_creates_new(mock_settings, tmp_path):
     """Once the cooldown expires, a new alert record should be created."""
     mock_settings.alert_cooldown_seconds = 1  # 1 second cooldown
+    mock_settings.alert_cooldown_profiles = {}
     mock_settings.alerts_dir = tmp_path
     svc = AlertService(alerts_dir=tmp_path)
 
@@ -132,6 +136,7 @@ def test_alert_after_cooldown_creates_new(mock_settings, tmp_path):
 def test_cooldown_zero_disables_dedup(mock_settings, tmp_path):
     """Setting cooldown to 0 should disable deduplication entirely."""
     mock_settings.alert_cooldown_seconds = 0
+    mock_settings.alert_cooldown_profiles = {}
     mock_settings.alerts_dir = tmp_path
     svc = AlertService(alerts_dir=tmp_path)
 
@@ -149,6 +154,7 @@ def test_cooldown_zero_disables_dedup(mock_settings, tmp_path):
 def test_resolved_alert_not_deduplicated(mock_settings, tmp_path):
     """A resolved alert should not absorb new duplicates."""
     mock_settings.alert_cooldown_seconds = 60
+    mock_settings.alert_cooldown_profiles = {}
     mock_settings.alerts_dir = tmp_path
     mock_settings.escalate_to_medium_threshold = 3
     mock_settings.escalate_to_high_threshold = 5
@@ -174,6 +180,7 @@ def test_resolved_alert_not_deduplicated(mock_settings, tmp_path):
 def test_many_duplicates_increment_correctly(mock_settings, tmp_path):
     """Firing 5 rapid duplicates should result in count=4 on one alert."""
     mock_settings.alert_cooldown_seconds = 60
+    mock_settings.alert_cooldown_profiles = {}
     mock_settings.alerts_dir = tmp_path
     mock_settings.escalate_to_medium_threshold = 3
     mock_settings.escalate_to_high_threshold = 5
@@ -189,3 +196,37 @@ def test_many_duplicates_increment_correctly(mock_settings, tmp_path):
 
     final = results[-1]
     assert final.duplicate_count == 4
+
+
+# ------------------------------------------------------------------
+# Cooldown Profiles
+# ------------------------------------------------------------------
+
+@patch("app.services.alert_service.settings")
+def test_cooldown_profiles(mock_settings, tmp_path):
+    """Specific alert types can override the default cooldown."""
+    mock_settings.alert_cooldown_seconds = 60
+    mock_settings.alert_cooldown_profiles = {AlertType.NO_VEST.value: 1}
+    mock_settings.alerts_dir = tmp_path
+    mock_settings.escalate_to_medium_threshold = 3
+    mock_settings.escalate_to_high_threshold = 5
+    mock_settings.escalate_to_critical_threshold = 10
+    svc = AlertService(alerts_dir=tmp_path)
+
+    # NO_HELMET should use the default 60s cooldown
+    helmet_1 = svc.create(_make_payload(alert_type=AlertType.NO_HELMET))
+    time.sleep(1.1)
+    helmet_2 = svc.create(_make_payload(alert_type=AlertType.NO_HELMET))
+    
+    # 60s > 1.1s, so they should deduplicate
+    assert helmet_2.alert_id == helmet_1.alert_id
+    assert helmet_2.duplicate_count == 1
+
+    # NO_VEST uses the 1s profile cooldown
+    vest_1 = svc.create(_make_payload(alert_type=AlertType.NO_VEST))
+    time.sleep(1.1)
+    vest_2 = svc.create(_make_payload(alert_type=AlertType.NO_VEST))
+    
+    # 1s < 1.1s, so they should NOT deduplicate (two separate records)
+    assert vest_2.alert_id != vest_1.alert_id
+    assert vest_2.duplicate_count == 0
