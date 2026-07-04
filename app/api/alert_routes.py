@@ -79,10 +79,13 @@ async def list_alerts(
     camera_id: str | None = Query(default=None),
     date_from: datetime | None = Query(default=None),
     date_to: datetime | None = Query(default=None),
+    skip: int = Query(default=0, ge=0),
     limit: int = Query(default=50, ge=1, le=100),
+    sort_by: str = Query(default="timestamp"),
+    sort_desc: bool = Query(default=True),
     user: User = Depends(require_role(Role.VIEWER)),
 ):
-    """Return all alerts matching the provided filters, newest first."""
+    """Return all alerts matching the provided filters, paginated and sorted."""
     filters = AlertFilter(
         severity=severity,
         status=status,
@@ -92,7 +95,16 @@ async def list_alerts(
         date_to=date_to,
     )
     alerts = _service.list_alerts(filters)
-    return AlertListResponse(total=len(alerts), alerts=alerts)
+    
+    # Sorting
+    alerts.sort(key=lambda a: getattr(a, sort_by, a.timestamp), reverse=sort_desc)
+    
+    total = len(alerts)
+    
+    # Pagination
+    paginated = alerts[skip:skip + limit]
+    
+    return AlertListResponse(total=total, alerts=paginated)
 
 
 @router.get(
