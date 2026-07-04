@@ -80,6 +80,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from config.settings import settings
+from app.middleware.rate_limiter import RateLimiter
+
+app.add_middleware(
+    RateLimiter,
+    requests_per_minute=settings.rate_limit_rpm,
+    enabled=settings.rate_limit_enabled,
+)
+
 app.include_router(alert_router)
 app.include_router(camera_router)
 app.include_router(stream_router)

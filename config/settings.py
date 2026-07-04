@@ -59,6 +59,8 @@ class Settings(BaseSettings):
     device: str = Field(default="auto")
     enable_privacy_mode: bool = Field(default=False, description="Blur faces in output video/snapshots")
     alert_cooldown_seconds: int = Field(default=60, ge=0, description="Cooldown period (seconds) to suppress duplicate alerts for the same worker/camera/type.")
+    rate_limit_rpm: int = Field(default=60, ge=0, description="Max API requests per minute per client IP (0 = unlimited).")
+    rate_limit_enabled: bool = Field(default=True, description="Enable/disable API rate limiting.")
     
     # MLflow Tracking
     mlflow_tracking_uri: str = Field(default="http://localhost:5000")
