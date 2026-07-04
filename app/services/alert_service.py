@@ -30,6 +30,7 @@ from app.models.alert import (
     AlertStatsResponse,
     AlertUpdate,
     STATUS_TRANSITIONS,
+    Severity,
 )
 
 # ---------------------------------------------------------------------------
@@ -185,6 +186,22 @@ class AlertService:
                 alert_dict = existing.to_dict()
                 alert_dict["duplicate_count"] = existing.duplicate_count + 1
                 alert_dict["last_seen_at"] = now.isoformat()
+                
+                # Escalation Logic
+                new_count = alert_dict["duplicate_count"]
+                current_severity = existing.severity
+                escalated = False
+                
+                if new_count >= settings.escalate_to_critical_threshold and current_severity != Severity.CRITICAL:
+                    alert_dict["severity"] = Severity.CRITICAL.value
+                    escalated = True
+                elif new_count >= settings.escalate_to_high_threshold and current_severity not in (Severity.HIGH, Severity.CRITICAL):
+                    alert_dict["severity"] = Severity.HIGH.value
+                    escalated = True
+                elif new_count >= settings.escalate_to_medium_threshold and current_severity == Severity.LOW:
+                    alert_dict["severity"] = Severity.MEDIUM.value
+                    escalated = True
+                    
                 # Update confidence to the latest (higher-is-better)
                 alert_dict["confidence"] = max(existing.confidence, payload.confidence)
                 updated = Alert(**alert_dict)
@@ -193,12 +210,17 @@ class AlertService:
                 self._save_index()
 
                 logger.info(
-                    "Alert deduplicated: %s (count=%d) camera=%s worker=%s",
+                    "Alert deduplicated: %s (count=%d) camera=%s worker=%s%s",
                     dup_id,
                     updated.duplicate_count,
                     updated.camera_id,
                     updated.worker_id,
+                    f" [ESCALATED to {updated.severity.value}]" if escalated else ""
                 )
+                
+                if escalated:
+                    self._trigger_notifications(updated)
+                    
                 return updated
 
         # ---- No duplicate: create a fresh alert ----
@@ -241,32 +263,32 @@ class AlertService:
             assigned_to=alert.assigned_to,
         )
 
-        # Fire-and-forget: send email notification
-        from app.services.email_service import email_service
+        self._trigger_notifications(alert)
+
+        return alert
+
+    def _trigger_notifications(self, alert: Alert) -> None:
+        """Fire-and-forget background notifications for the alert."""
         from app.services.task_worker import task_worker
+        from app.services.email_service import email_service
+        from app.services.slack_service import slack_service
+        from app.services.teams_service import teams_service
+
         task_worker.submit(
             email_service.send_alert_notification, 
             alert, 
             task_type="email_notification"
         )
-
-        # Fire-and-forget: send Slack notification
-        from app.services.slack_service import slack_service
         task_worker.submit(
             slack_service.send_alert_notification,
             alert,
             task_type="slack_notification"
         )
-
-        # Fire-and-forget: send Teams notification
-        from app.services.teams_service import teams_service
         task_worker.submit(
             teams_service.send_alert_notification,
             alert,
             task_type="teams_notification"
         )
-
-        return alert
 
     def get(self, alert_id: str) -> Alert:
         """Retrieve a single alert by ID.
