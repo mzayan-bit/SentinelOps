@@ -79,6 +79,7 @@ async def list_alerts(
     camera_id: str | None = Query(default=None),
     date_from: datetime | None = Query(default=None),
     date_to: datetime | None = Query(default=None),
+    limit: int = Query(default=50, ge=1, le=100),
     user: User = Depends(require_role(Role.VIEWER)),
 ):
     """Return all alerts matching the provided filters, newest first."""

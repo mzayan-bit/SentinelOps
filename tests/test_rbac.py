@@ -27,7 +27,6 @@ def enable_auth_for_these_tests(tmp_path):
     2. Overwrite the users config file path to use `tmp_path` so we don't
        mutate the real `config/users.json`.
     """
-    set_auth_enabled(True)
     
     import app.auth as auth_mod
     original_user_store = auth_mod._user_store
@@ -48,13 +47,15 @@ def enable_auth_for_these_tests(tmp_path):
     
     # Restore global state
     auth_mod._user_store = original_user_store
-    set_auth_enabled(False)
 
 
 @pytest.fixture
 def client():
     with TestClient(app) as tc:
+        # Set auth true AFTER lifespan executes so it overrides any lifespan logic
+        set_auth_enabled(True)
         yield tc
+        set_auth_enabled(False)
 
 
 # ---------------------------------------------------------------------------
