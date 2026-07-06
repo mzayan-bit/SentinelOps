@@ -91,7 +91,7 @@ class PredictionService:
         else:
             min_conf = threshold_service.get_min_threshold()
 
-        model = self._loader.get_model()
+        backend = self._loader.get_model()
 
         if isinstance(image_source, (str, Path)):
             path = Path(image_source)
@@ -110,22 +110,34 @@ class PredictionService:
 
         t0 = time.perf_counter()
         
-        # YOLO model.predict() is NOT thread-safe. We must lock it!
+        # Backend execution is locked internally if necessary, but we lock here
+        # to ensure serial pipeline execution if strictly desired.
         with self._inference_lock:
-            results = model.predict(
-                source=img_array,
-                conf=min_conf,
-                imgsz=self._input_size,
-                verbose=False,
+            detections = backend.predict(
+                image=img_array,
+                confidence=min_conf,
+                input_size=self._input_size,
             )
 
         elapsed_ms = (time.perf_counter() - t0) * 1000
 
-        detections = self._parse_results(results, model, explicit_confidence=confidence)
+        # We no longer need _parse_results because the backend abstraction standardizes the output!
+        # We just dynamically filter detections that don't meet per-class thresholds
+        config = threshold_service.get_config()
+        filtered_detections = []
+        for det in detections:
+            class_name = det["class_name"]
+            if confidence is not None:
+                required_conf = confidence
+            else:
+                required_conf = config.per_class.get(class_name, config.global_threshold)
+                
+            if det["confidence"] >= required_conf:
+                filtered_detections.append(det)
 
         logger.info(
             "Inference complete: %d detection(s) in %.1f ms",
-            len(detections),
+            len(filtered_detections),
             elapsed_ms,
         )
 
@@ -133,62 +145,7 @@ class PredictionService:
             "image_path": source_name,
             "image_width": w,
             "image_height": h,
-            "num_detections": len(detections),
-            "detections": detections,
+            "num_detections": len(filtered_detections),
+            "detections": filtered_detections,
             "inference_time_ms": round(elapsed_ms, 2),
         }
-
-    # ------------------------------------------------------------------
-    # Internal helpers
-    # ------------------------------------------------------------------
-
-    @staticmethod
-    def _parse_results(
-        results: list,
-        model: Any,
-        explicit_confidence: float | None = None
-    ) -> list[dict[str, Any]]:
-        """Convert raw YOLO results into a list of detection dicts."""
-        from app.services.threshold_service import threshold_service
-        detections: list[dict[str, Any]] = []
-
-        if not results:
-            return detections
-
-        class_names: dict[int, str] = getattr(model, "names", {})
-        boxes = results[0].boxes
-
-        config = threshold_service.get_config()
-
-        for box in boxes:
-            xyxy = box.xyxy[0].tolist()
-            cls_id = int(box.cls[0].item())
-            conf = float(box.conf[0].item())
-            class_name = class_names.get(cls_id, f"class_{cls_id}")
-            
-            # Filter dynamically
-            if explicit_confidence is not None:
-                required_conf = explicit_confidence
-            else:
-                required_conf = config.per_class.get(class_name, config.global_threshold)
-
-            if conf < required_conf:
-                continue
-
-            x_min, y_min, x_max, y_max = xyxy
-
-            detections.append({
-                "class_id": cls_id,
-                "class_name": class_name,
-                "confidence": round(conf, 4),
-                "bounding_box": {
-                    "x_min": round(x_min, 2),
-                    "y_min": round(y_min, 2),
-                    "x_max": round(x_max, 2),
-                    "y_max": round(y_max, 2),
-                    "width": round(x_max - x_min, 2),
-                    "height": round(y_max - y_min, 2),
-                },
-            })
-
-        return detections
