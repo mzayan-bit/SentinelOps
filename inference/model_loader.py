@@ -90,26 +90,33 @@ class ModelLoader:
         return self._model
 
     def switch_model(self, model_path: str | Path) -> None:
-        """Dynamically switch the active YOLO model in-memory.
-
-        Parameters
-        ----------
-        model_path : str | Path
-            Path to the new YOLO weights file.
+        """Dynamically switch the active YOLO model safely.
+        
+        Performs Health Verification by loading the model and running
+        a warmup inference. If it fails, the active model is untouched
+        and an exception is raised.
         """
         with self._lock:
             new_path = Path(model_path)
             if not new_path.exists():
                 raise ModelNotFoundError(f"Model weights not found at '{new_path}'.")
             
-            logger.info("Switching YOLO model to '%s' …", new_path)
+            logger.info("Verifying new YOLO model at '%s' …", new_path)
             
-            # Clean up old model before loading new one to avoid OOM
+            # 1. Load and Verify new model IN MEMORY (do not destroy active yet)
+            try:
+                temp_model = self._load_and_verify(new_path)
+            except Exception as e:
+                logger.error(f"Health Verification Failed for {new_path}: {e}")
+                raise RuntimeError(f"Model rejected due to failing Health Verification: {e}")
+                
+            # 2. Verification passed! Safely swap.
+            logger.info("Health Verification passed. Hot-swapping model.")
             if self._model is not None:
                 self._unload()
                 
             self._model_path = new_path
-            self._model = self._load()
+            self._model = temp_model
 
     def _unload(self) -> None:
         """Safely destroy the current model and release VRAM."""
@@ -127,13 +134,17 @@ class ModelLoader:
     # -- Internal ----------------------------------------------------------
 
     def _load(self) -> YOLO:
-        """Validate the path, load weights, and log the result."""
+        """Helper to load the default model."""
+        return self._load_and_verify(self._model_path)
+
+    def _load_and_verify(self, target_path: Path) -> YOLO:
+        """Validate the path, load weights, run warmup/health check, and return the model."""
         import torch
         import numpy as np
         
-        if not self._model_path.exists():
+        if not target_path.exists():
             raise ModelNotFoundError(
-                f"Model weights not found at '{self._model_path}'. "
+                f"Model weights not found at '{target_path}'. "
                 "Set the MODEL_PATH environment variable to a valid .pt file."
             )
 
@@ -149,8 +160,8 @@ class ModelLoader:
             else:
                 device = "cpu"
 
-        logger.info("Loading YOLO model from '%s' onto device '%s' …", self._model_path, device)
-        model = YOLO(str(self._model_path))
+        logger.info("Loading YOLO model from '%s' onto device '%s' …", target_path, device)
+        model = YOLO(str(target_path))
         
         # Override device if explicit
         model.to(device)
@@ -160,12 +171,10 @@ class ModelLoader:
             len(getattr(model, "names", {}))
         )
         
-        # 2. Warmup Inference
-        # The first inference call is notoriously slow as PyTorch allocates CUDA graphs
-        # and memory buffers. We run a dummy array through to take the hit during initialization.
-        logger.info("Running warmup inference...")
+        # 2. Warmup & Health Verification
+        logger.info("Running warmup inference / health verification...")
         dummy_input = np.zeros((640, 640, 3), dtype=np.uint8)
         model.predict(source=dummy_input, imgsz=640, verbose=False, device=device)
-        logger.info("Warmup complete. Model is ready for real-time inference.")
+        logger.info("Warmup complete. Model is verified and ready.")
         
         return model
