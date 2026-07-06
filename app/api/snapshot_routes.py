@@ -13,7 +13,7 @@ async def create_snapshot(
     camera_id: str = Form(..., description="ID of the originating camera"),
     metadata_json: str = Form("{}", description="Stringified JSON object containing telemetry/violation data"),
     file: UploadFile = File(..., description="The raw encoded image frame (JPEG/PNG)"),
-    user: User = Depends(require_role(Role.SUPERVISOR))
+    user: UserModel = Depends(require_role(Role.SUPERVISOR))
 ):
     """
     Accepts an uploaded image file along with contextual metadata and submits
@@ -42,7 +42,7 @@ async def create_snapshot(
     }
 
 @router.get("/{year}/{month}/{day}/{filename}", summary="Retrieve snapshot image")
-def get_snapshot_image(year: str, month: str, day: str, filename: str, user: User = Depends(require_role(Role.VIEWER))):
+def get_snapshot_image(year: str, month: str, day: str, filename: str, user: UserModel = Depends(require_role(Role.VIEWER))):
     """
     Streams the raw snapshot image directly back to the client for rendering in the dashboard.
     """
@@ -61,7 +61,7 @@ def get_snapshot_image(year: str, month: str, day: str, filename: str, user: Use
     return FileResponse(str(full_path), media_type=media_type)
 
 @router.get("/{year}/{month}/{day}/{filename}/metadata", summary="Retrieve snapshot metadata")
-def get_snapshot_metadata(year: str, month: str, day: str, filename: str, user: User = Depends(require_role(Role.VIEWER))):
+def get_snapshot_metadata(year: str, month: str, day: str, filename: str, user: UserModel = Depends(require_role(Role.VIEWER))):
     """
     Retrieves the contextual JSON metadata sidecar file saved alongside a specific snapshot image.
     """

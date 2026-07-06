@@ -64,7 +64,7 @@ _CONTENT_TYPES: dict[ReportFormat, str] = {
     status_code=202,
     summary="Submit report generation (async)",
 )
-async def generate_report(request: ReportRequest, user: User = Depends(require_role(Role.SUPERVISOR))):
+async def generate_report(request: ReportRequest, user: UserModel = Depends(require_role(Role.SUPERVISOR))):
     """Submit a violation report for background generation.
 
     Returns immediately with a task_id that can be polled via
@@ -88,7 +88,7 @@ async def generate_report(request: ReportRequest, user: User = Depends(require_r
     response_model=list[ReportMetadata],
     summary="List all generated reports",
 )
-async def list_reports(user: User = Depends(require_role(Role.VIEWER))):
+async def list_reports(user: UserModel = Depends(require_role(Role.VIEWER))):
     """Return metadata for all previously generated reports."""
     return _report_service.list_reports()
 
@@ -97,7 +97,7 @@ async def list_reports(user: User = Depends(require_role(Role.VIEWER))):
     "/{report_id}/download",
     summary="Download a report file",
 )
-async def download_report(report_id: str, user: User = Depends(require_role(Role.VIEWER))):
+async def download_report(report_id: str, user: UserModel = Depends(require_role(Role.VIEWER))):
     """Download a generated report file by its ID."""
     try:
         path = _report_service.get_report_path(report_id)

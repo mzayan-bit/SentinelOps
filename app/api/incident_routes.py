@@ -7,7 +7,7 @@ from app.services.incident_service import incident_service
 router = APIRouter(prefix="/api/incidents", tags=["Incidents"])
 
 @router.post("", response_model=IncidentResponse, status_code=status.HTTP_201_CREATED, summary="Log a new violation incident")
-def create_incident(incident_in: IncidentCreate, user: User = Depends(require_role(Role.SUPERVISOR))):
+def create_incident(incident_in: IncidentCreate, user: UserModel = Depends(require_role(Role.SUPERVISOR))):
     """
     Logs a new violation event to the timeline. 
     Typically called by the model inference pipeline upon detecting a PPE violation.
@@ -21,7 +21,7 @@ def get_incidents(
     start_time: Optional[float] = Query(None, description="Start timestamp filter"),
     end_time: Optional[float] = Query(None, description="End timestamp filter"),
     limit: int = Query(100, description="Max number of incidents to return"),
-    user: User = Depends(require_role(Role.VIEWER))
+    user: UserModel = Depends(require_role(Role.VIEWER))
 ):
     """
     Retrieves the incident timeline. Supports filtering by camera, severity, and timestamp ranges.
@@ -38,7 +38,7 @@ def get_incidents(
 @router.get("/{incident_id}/summary", summary="Generate a structured summary for an incident")
 def get_incident_summary(
     incident_id: str,
-    user: User = Depends(require_role(Role.VIEWER))
+    user: UserModel = Depends(require_role(Role.VIEWER))
 ):
     """
     Generates a natural language summary of the incident including what happened,

@@ -7,7 +7,8 @@ import logging
 from typing import List
 
 from fastapi import APIRouter, HTTPException, status, Depends
-from app.core.security import Role, get_current_user, require_role, User
+from app.core.security import Role, get_current_user, require_role
+from app.db.models import UserModel
 
 from app.services.model_registry import model_registry_service
 from schemas.model_registry import RegisteredModel, ModelSwitchRequest
@@ -18,13 +19,13 @@ router = APIRouter(prefix="/api/models", tags=["Models"])
 
 
 @router.get("", response_model=List[RegisteredModel])
-async def list_models(user: User = Depends(require_role(Role.VIEWER))):
+async def list_models(user: UserModel = Depends(require_role(Role.VIEWER))):
     """Retrieve a list of all registered YOLO models."""
     return model_registry_service.list_models()
 
 
 @router.get("/active", response_model=RegisteredModel)
-async def get_active_model(user: User = Depends(require_role(Role.VIEWER))):
+async def get_active_model(user: UserModel = Depends(require_role(Role.VIEWER))):
     """Get the currently active YOLO model."""
     model = model_registry_service.get_active_model()
     if not model:
@@ -36,13 +37,13 @@ async def get_active_model(user: User = Depends(require_role(Role.VIEWER))):
 
 
 @router.post("", response_model=RegisteredModel, status_code=status.HTTP_201_CREATED)
-async def register_model(model: RegisteredModel, user: User = Depends(require_role(Role.ADMIN))):
+async def register_model(model: RegisteredModel, user: UserModel = Depends(require_role(Role.ORG_ADMIN))):
     """Register a new YOLO model or update an existing one."""
     return model_registry_service.register_model(model)
 
 
 @router.post("/active", response_model=RegisteredModel)
-async def switch_active_model(request: ModelSwitchRequest, user: User = Depends(require_role(Role.SUPERVISOR))):
+async def switch_active_model(request: ModelSwitchRequest, user: UserModel = Depends(require_role(Role.SUPERVISOR))):
     """Switch the active YOLO model dynamically at runtime."""
     try:
         active_model = model_registry_service.set_active_model(request.name, request.version)

@@ -19,7 +19,7 @@ async def debug_tasks():
 
 @router.get("", response_model=List[CameraResponse], summary="List all cameras")
 @cached(prefix="cameras:", ttl_seconds=5)
-async def list_cameras(user: User = Depends(require_role(Role.VIEWER))):
+async def list_cameras(user: UserModel = Depends(require_role(Role.VIEWER))):
     """Retrieves all registered cameras and their current statuses."""
     cameras = camera_manager.list_cameras()
     return [
@@ -33,12 +33,12 @@ async def list_cameras(user: User = Depends(require_role(Role.VIEWER))):
 
 @router.get("/health/all", response_model=Dict[str, CameraHealth], summary="Get health of all cameras")
 @cached(prefix="health:", ttl_seconds=5)
-async def get_all_health(user: User = Depends(require_role(Role.VIEWER))):
+async def get_all_health(user: UserModel = Depends(require_role(Role.VIEWER))):
     """Returns the real-time telemetry and health data for all monitored streams."""
     return health_monitor.get_all_health()
 
 @router.post("", response_model=CameraResponse, status_code=status.HTTP_201_CREATED, summary="Register a new camera")
-async def add_camera(camera_in: CameraCreate, user: User = Depends(require_role(Role.ADMIN))):
+async def add_camera(camera_in: CameraCreate, user: UserModel = Depends(require_role(Role.ORG_ADMIN))):
     """Registers a new video source and assigns it a UUID."""
     cam_id = camera_manager.add_camera(source=camera_in.source, name=camera_in.name)
     
@@ -58,7 +58,7 @@ async def add_camera(camera_in: CameraCreate, user: User = Depends(require_role(
 
 @router.get("/{camera_id}/health", response_model=CameraHealth, summary="Get camera health metrics")
 @cached(prefix="health:", ttl_seconds=5)
-async def get_camera_health(camera_id: str, user: User = Depends(require_role(Role.VIEWER))):
+async def get_camera_health(camera_id: str, user: UserModel = Depends(require_role(Role.VIEWER))):
     """Retrieves latency, FPS, and status for a specific camera."""
     health = health_monitor.get_health(camera_id)
     if not health:
@@ -66,7 +66,7 @@ async def get_camera_health(camera_id: str, user: User = Depends(require_role(Ro
     return health
 
 @router.delete("/{camera_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Remove a camera")
-async def remove_camera(camera_id: uuid.UUID, user: User = Depends(require_role(Role.ADMIN))):
+async def remove_camera(camera_id: uuid.UUID, user: UserModel = Depends(require_role(Role.ORG_ADMIN))):
     """Stops and removes the specified camera from the manager."""
     success = camera_manager.remove_camera(camera_id)
     if not success:
@@ -75,7 +75,7 @@ async def remove_camera(camera_id: uuid.UUID, user: User = Depends(require_role(
     await invalidate_prefix("health:")
 
 @router.post("/{camera_id}/start", summary="Start camera processing")
-async def start_camera(camera_id: uuid.UUID, user: User = Depends(require_role(Role.SUPERVISOR))):
+async def start_camera(camera_id: uuid.UUID, user: UserModel = Depends(require_role(Role.SUPERVISOR))):
     """Starts the video processing pipeline for the given camera."""
     try:
         camera_manager.start_camera(camera_id)
@@ -88,7 +88,7 @@ async def start_camera(camera_id: uuid.UUID, user: User = Depends(require_role(R
         raise HTTPException(status_code=404, detail=str(e))
 
 @router.post("/{camera_id}/stop", summary="Stop camera processing")
-async def stop_camera(camera_id: uuid.UUID, user: User = Depends(require_role(Role.SUPERVISOR))):
+async def stop_camera(camera_id: uuid.UUID, user: UserModel = Depends(require_role(Role.SUPERVISOR))):
     """Stops the video processing pipeline for the given camera."""
     try:
         camera_manager.stop_camera(camera_id)

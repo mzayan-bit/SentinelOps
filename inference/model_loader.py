@@ -103,24 +103,69 @@ class ModelLoader:
                 raise ModelNotFoundError(f"Model weights not found at '{new_path}'.")
             
             logger.info("Switching YOLO model to '%s' …", new_path)
+            
+            # Clean up old model before loading new one to avoid OOM
+            if self._model is not None:
+                self._unload()
+                
             self._model_path = new_path
             self._model = self._load()
+
+    def _unload(self) -> None:
+        """Safely destroy the current model and release VRAM."""
+        import gc
+        import torch
+        logger.info("Unloading YOLO model and clearing memory.")
+        del self._model
+        self._model = None
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+            torch.mps.empty_cache()
 
     # -- Internal ----------------------------------------------------------
 
     def _load(self) -> YOLO:
         """Validate the path, load weights, and log the result."""
+        import torch
+        import numpy as np
+        
         if not self._model_path.exists():
             raise ModelNotFoundError(
                 f"Model weights not found at '{self._model_path}'. "
                 "Set the MODEL_PATH environment variable to a valid .pt file."
             )
 
-        logger.info("Loading YOLO model from '%s' …", self._model_path)
+        # 1. Device Selection
+        device_override = settings.device.lower()
+        if device_override != "auto":
+            device = device_override
+        else:
+            if torch.cuda.is_available():
+                device = "cuda:0"
+            elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+                device = "mps"
+            else:
+                device = "cpu"
+
+        logger.info("Loading YOLO model from '%s' onto device '%s' …", self._model_path, device)
         model = YOLO(str(self._model_path))
+        
+        # Override device if explicit
+        model.to(device)
+
         logger.info(
-            "Model loaded successfully (%d classes, device=%s).",
-            len(getattr(model, "names", {})),
-            next(model.model.parameters()).device,
+            "Model loaded successfully (%d classes).",
+            len(getattr(model, "names", {}))
         )
+        
+        # 2. Warmup Inference
+        # The first inference call is notoriously slow as PyTorch allocates CUDA graphs
+        # and memory buffers. We run a dummy array through to take the hit during initialization.
+        logger.info("Running warmup inference...")
+        dummy_input = np.zeros((640, 640, 3), dtype=np.uint8)
+        model.predict(source=dummy_input, imgsz=640, verbose=False, device=device)
+        logger.info("Warmup complete. Model is ready for real-time inference.")
+        
         return model

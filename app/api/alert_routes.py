@@ -86,7 +86,7 @@ async def list_alerts(
     page_size: int | None = Query(default=None, ge=1, le=100),
     sort_by: str = Query(default="timestamp"),
     sort_desc: bool = Query(default=True),
-    user: User = Depends(require_role(Role.VIEWER)),
+    user: UserModel = Depends(require_role(Role.VIEWER)),
 ):
     """Return all alerts matching the provided filters, paginated and sorted."""
     filters = AlertFilter(
@@ -131,7 +131,7 @@ async def list_alerts(
     response_model=AlertStatsResponse,
     summary="Aggregate alert statistics",
 )
-async def alert_stats(user: User = Depends(require_role(Role.VIEWER))):
+async def alert_stats(user: UserModel = Depends(require_role(Role.VIEWER))):
     """Return total counts grouped by severity, status, and type."""
     return _service.stats()
 
@@ -141,7 +141,7 @@ async def alert_stats(user: User = Depends(require_role(Role.VIEWER))):
     response_model=Alert,
     summary="Get a single alert",
 )
-async def get_alert(alert_id: str, user: User = Depends(require_role(Role.VIEWER))):
+async def get_alert(alert_id: str, user: UserModel = Depends(require_role(Role.VIEWER))):
     """Retrieve full alert details by ID."""
     try:
         return _service.get(alert_id)
@@ -155,7 +155,7 @@ async def get_alert(alert_id: str, user: User = Depends(require_role(Role.VIEWER
     status_code=201,
     summary="Create a new alert",
 )
-async def create_alert(payload: AlertCreate, user: User = Depends(require_role(Role.SUPERVISOR))):
+async def create_alert(payload: AlertCreate, user: UserModel = Depends(require_role(Role.SUPERVISOR))):
     """Register a new security / safety alert."""
     return _service.create(payload)
 
@@ -165,7 +165,7 @@ async def create_alert(payload: AlertCreate, user: User = Depends(require_role(R
     response_model=Alert,
     summary="Update an alert",
 )
-async def update_alert(alert_id: str, payload: AlertUpdate, user: User = Depends(require_role(Role.SUPERVISOR))):
+async def update_alert(alert_id: str, payload: AlertUpdate, user: UserModel = Depends(require_role(Role.SUPERVISOR))):
     """Partially update an existing alert's fields."""
     try:
         return _service.update(alert_id, payload)
@@ -180,7 +180,7 @@ async def update_alert(alert_id: str, payload: AlertUpdate, user: User = Depends
     status_code=204,
     summary="Delete an alert",
 )
-async def delete_alert(alert_id: str, user: User = Depends(require_role(Role.ADMIN))):
+async def delete_alert(alert_id: str, user: UserModel = Depends(require_role(Role.ORG_ADMIN))):
     """Permanently delete an alert."""
     try:
         _service.delete(alert_id)
@@ -193,7 +193,7 @@ async def delete_alert(alert_id: str, user: User = Depends(require_role(Role.ADM
     response_model=Alert,
     summary="Assign an alert",
 )
-async def assign_alert(alert_id: str, payload: AlertAssign, user: User = Depends(require_role(Role.SUPERVISOR))):
+async def assign_alert(alert_id: str, payload: AlertAssign, user: UserModel = Depends(require_role(Role.SUPERVISOR))):
     """Assign an alert to an investigator and move to 'Investigating'."""
     try:
         return _service.assign(alert_id, payload.assigned_to)
@@ -208,7 +208,7 @@ async def assign_alert(alert_id: str, payload: AlertAssign, user: User = Depends
     response_model=Alert,
     summary="Resolve an alert",
 )
-async def resolve_alert(alert_id: str, payload: AlertResolve, user: User = Depends(require_role(Role.SUPERVISOR))):
+async def resolve_alert(alert_id: str, payload: AlertResolve, user: UserModel = Depends(require_role(Role.SUPERVISOR))):
     """Resolve an alert or mark it as a false positive."""
     try:
         return _service.resolve(alert_id, payload)

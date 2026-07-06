@@ -31,7 +31,7 @@ async def list_tasks(
         default=None, description="Filter by task status"
     ),
     limit: int = Query(default=50, ge=1, le=200),
-    user: User = Depends(require_role(Role.VIEWER)),
+    user: UserModel = Depends(require_role(Role.VIEWER)),
 ):
     """Return a list of recent background tasks with their statuses."""
     tasks = task_worker.list_tasks(status_filter=status, limit=limit)
@@ -55,7 +55,7 @@ async def list_tasks(
 )
 async def get_task_status(
     task_id: str,
-    user: User = Depends(require_role(Role.VIEWER)),
+    user: UserModel = Depends(require_role(Role.VIEWER)),
 ):
     """Return the current status and result of a background task."""
     task = task_worker.get_status(task_id)

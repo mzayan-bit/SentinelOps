@@ -1,24 +1,26 @@
 import cv2
-import base64
 import time
 import asyncio
 import logging
 import threading
 from pathlib import Path
-from app.services.pipeline import InferencePipeline
-from app.services.stream_manager import stream_manager
+
+from app.services.pipeline_core.context import PipelineContext
+from app.services.pipeline_core.manager import PipelineManager
+from inference.stages.preprocessing import PreprocessingStage
+from inference.stages.inference import InferenceStage
+from inference.stages.tracking import TrackingStage
+from inference.stages.violation import ViolationStage
+from inference.stages.alerting import AlertingStage
+from inference.stages.visualization import VisualizationStage
+from inference.stages.streaming import StreamingStage
+
 from app.api.camera_routes import camera_manager
 
 logger = logging.getLogger(__name__)
 
-# Colors (BGR)
-COLOR_SAFE = (0, 255, 0)
-COLOR_WARNING = (0, 165, 255)
-COLOR_DANGER = (0, 0, 255)
-
 class DemoRunner:
     def __init__(self):
-        self.pipeline = InferencePipeline()
         self.stop_event = threading.Event()
         self.threads = []
         
@@ -30,51 +32,20 @@ class DemoRunner:
             {"id": "CAM-LOADING-DOCK", "name": "Loading Dock", "video": "test_assets/cam4.mp4"},
         ]
 
-    def _draw_boxes(self, frame, prediction, assessment):
-        """Draws bounding boxes based on raw detections and violations."""
-        
-        # 1. Resize large frames (like 1080p) down to 720p or 480p for WebSocket streaming
-        h, w = frame.shape[:2]
-        if w > 1280:
-            scale = 1280 / w
-            frame = cv2.resize(frame, (1280, int(h * scale)))
-
-        scale_w = 1280 / w if w > 1280 else 1.0
-        scale_h = 1280 / w if w > 1280 else 1.0
-
-        # 2. Draw actual PPE detections (what YOLO actually saw)
-        for det in prediction.get("detections", []):
-            bbox = det["bounding_box"]
-            cls_name = det["class_name"]
-            
-            x1 = int(bbox["x_min"] * scale_w)
-            y1 = int(bbox["y_min"] * scale_h)
-            x2 = int(bbox["x_max"] * scale_w)
-            y2 = int(bbox["y_max"] * scale_h)
-            
-            # Green for helmet, Yellow for vest
-            color = (0, 255, 255) if "vest" in cls_name.lower() or "jacket" in cls_name.lower() else COLOR_SAFE
-            
-            cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
-            cv2.putText(frame, cls_name, (x1, max(y1 - 10, 0)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
-            
-        # 3. Draw red outlines for the violation regions
-        for v in assessment.get("violations", []):
-            if v["status"] != "SAFE":
-                bbox = v["person_bbox"]
-                x1 = int(bbox["x_min"] * scale_w)
-                y1 = int(bbox["y_min"] * scale_h)
-                x2 = int(bbox["x_max"] * scale_w)
-                y2 = int(bbox["y_max"] * scale_h)
-                
-                # Draw a distinct red bounding box for the violation area
-                cv2.rectangle(frame, (x1, y1), (x2, y2), COLOR_DANGER, 3)
-                cv2.putText(frame, f"VIOLATION: {v['status']}", (x1, max(y1 - 25, 0)), cv2.FONT_HERSHEY_SIMPLEX, 0.7, COLOR_DANGER, 2)
-                
-        return frame
+    def _build_pipeline(self, main_loop: asyncio.AbstractEventLoop) -> PipelineManager:
+        """Constructs the Pipeline Manager and registers all AI stages."""
+        manager = PipelineManager(stages=[])
+        manager.add_stage(PreprocessingStage(max_width=1280))
+        manager.add_stage(InferenceStage())
+        manager.add_stage(TrackingStage(max_disappeared=30, max_distance=150))
+        manager.add_stage(ViolationStage())
+        manager.add_stage(AlertingStage())
+        manager.add_stage(VisualizationStage(target_width=1280))
+        manager.add_stage(StreamingStage(main_loop=main_loop))
+        return manager
 
     def _run_camera_loop(self, cam_id: str, video_path: str, main_loop: asyncio.AbstractEventLoop):
-        """Continuous thread looping over the video file."""
+        """Continuous thread looping over the video file with Frame Skipping (Backpressure)."""
         video_file = Path(video_path)
         if not video_file.exists():
             logger.error(f"Demo video not found: {video_path}")
@@ -84,9 +55,10 @@ class DemoRunner:
         fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
         frame_time = 1.0 / fps
         
-        logger.info(f"Started loop for {cam_id} using {video_path} at {fps} FPS")
-
-        logger.info(f"Started loop for {cam_id} using {video_path} at {fps} FPS")
+        # Each camera thread gets its own pipeline instance (though underlying models may be singletons)
+        pipeline = self._build_pipeline(main_loop)
+        
+        logger.info(f"Started Enterprise Pipeline loop for {cam_id} using {video_path} at {fps} FPS")
 
         while not self.stop_event.is_set():
             start = time.time()
@@ -96,30 +68,29 @@ class DemoRunner:
                 cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
                 continue
 
-            prediction, assessment = self.pipeline.process_frame(cam_id, frame)
-            annotated_frame = self._draw_boxes(frame, prediction, assessment)
+            # -------------------------------------------------------------
+            # BACKPRESSURE / FRAME SKIPPING LOGIC
+            # If the pipeline takes longer than 'frame_time' to process a frame,
+            # we simply let the video loop continue reading (and effectively dropping) 
+            # frames to catch up to real-time. We don't queue them.
+            # -------------------------------------------------------------
             
-            _, buffer = cv2.imencode('.jpg', annotated_frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
-            b64_image = base64.b64encode(buffer).decode('utf-8')
-            
-            payload = {
-                "camera_id": cam_id,
-                "timestamp": time.time(),
-                "fps": round(fps, 1),
-                "violation_count": assessment.get("total_violations", 0),
-                "frame": b64_image
-            }
-            
-            # Broadcast to Connected Clients safely on the main loop
-            asyncio.run_coroutine_threadsafe(
-                stream_manager.broadcast(cam_id, payload), 
-                main_loop
-            )
+            context = PipelineContext(camera_id=cam_id, original_frame=frame)
+            pipeline.process(context)
 
             elapsed = time.time() - start
             sleep_time = frame_time - elapsed
+            
             if sleep_time > 0:
                 time.sleep(sleep_time)
+            else:
+                # We are falling behind real-time. Calculate how many frames to skip.
+                # E.g. If frame_time is 33ms and elapsed is 100ms, we should skip ~2 frames.
+                frames_to_skip = int(-sleep_time // frame_time)
+                if frames_to_skip > 0:
+                    logger.debug(f"[{cam_id}] Pipeline overloaded (took {elapsed*1000:.1f}ms). Skipping {frames_to_skip} frames to maintain real-time.")
+                    for _ in range(frames_to_skip):
+                        cap.read() # Read and discard
 
         cap.release()
 

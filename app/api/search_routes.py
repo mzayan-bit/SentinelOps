@@ -11,7 +11,8 @@ from app.db.database import get_db
 from app.repositories.search_repository import search_repository
 from app.services.nlp_parser import NLPEngine
 from schemas.search import SearchResponse
-from app.core.security import Role, get_current_user, require_role, User
+from app.core.security import Role, get_current_user, require_role
+from app.db.models import UserModel
 
 router = APIRouter(prefix="/api/search", tags=["search"])
 
@@ -19,7 +20,7 @@ router = APIRouter(prefix="/api/search", tags=["search"])
 async def search_incidents(
     q: str = Query(..., description="Natural language query string"),
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(require_role(Role.VIEWER))
+    user: UserModel = Depends(require_role(Role.VIEWER))
 ):
     """
     Parse a natural language query into database filters and return matching incidents.

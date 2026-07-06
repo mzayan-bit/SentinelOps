@@ -33,6 +33,6 @@ router = APIRouter(prefix="/api/metrics", tags=["System"])
     summary="Get platform snapshot metrics",
 )
 @cached(prefix="metrics:", ttl_seconds=5)
-async def get_platform_metrics(user: User = Depends(require_role(Role.VIEWER))):
+async def get_platform_metrics(user: UserModel = Depends(require_role(Role.VIEWER))):
     """Retrieve real-time hardware utilization and application telemetry snapshot."""
     return _metrics_service.get_snapshot()
