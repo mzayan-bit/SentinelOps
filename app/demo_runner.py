@@ -37,7 +37,7 @@ class DemoRunner:
         manager = PipelineManager(stages=[])
         manager.add_stage(PreprocessingStage(max_width=1280))
         manager.add_stage(InferenceStage())
-        manager.add_stage(TrackingStage(max_disappeared=30, max_distance=150))
+        manager.add_stage(TrackingStage(max_age=15, iou_threshold=0.3))
         manager.add_stage(ViolationStage())
         manager.add_stage(AlertingStage())
         manager.add_stage(VisualizationStage(target_width=1280))
