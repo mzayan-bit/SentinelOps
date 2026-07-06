@@ -27,7 +27,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from app.auth import Role, User, require_role
+from app.core.security import Role, get_current_user, require_role
 from app.schemas.pagination import PaginationParams, build_page_meta
 
 from app.models.alert import (

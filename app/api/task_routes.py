@@ -14,7 +14,7 @@ import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from app.auth import Role, User, require_role
+from app.core.security import Role, get_current_user, require_role
 from app.services.task_worker import TaskStatus, task_worker
 
 logger = logging.getLogger("sentinelops.task_api")

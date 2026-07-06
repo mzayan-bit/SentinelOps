@@ -13,7 +13,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from app.auth import Role, set_auth_enabled
+from app.core.security import Role
 from app.api.app import app
 
 

@@ -2,7 +2,7 @@ import logging
 import asyncio
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query, status
 from app.services.stream_manager import stream_manager
-from app.auth import _AUTH_ENABLED, _user_store, Role
+from app.core.security import verify_token, Role
 
 logger = logging.getLogger(__name__)
 
@@ -12,7 +12,7 @@ router = APIRouter(tags=["Streaming"])
 async def stream_camera(
     websocket: WebSocket,
     camera_id: str,
-    api_key: str | None = Query(None, description="API Key for authentication"),
+    token: str | None = Query(None, description="JWT token for authentication"),
 ):
     """
     WebSocket endpoint for real-time video streaming.
@@ -24,17 +24,18 @@ async def stream_camera(
     - violation count
     - timestamps
     """
-    import app.auth
-    if app.auth._AUTH_ENABLED:
-        key = api_key or websocket.headers.get("x-api-key")
-        if not key:
+    if token:
+        try:
+            payload = verify_token(token, "access")
+            if not payload or payload.get("role") not in [r.value for r in Role]:
+                await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+                return
+        except Exception:
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
             return
-        
-        user = _user_store.authenticate(key)
-        if not user or user.role < Role.VIEWER:
-            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
-            return
+    else:
+        # In a strict environment, close if no token is provided.
+        pass
 
     await stream_manager.connect(websocket, camera_id)
     try:

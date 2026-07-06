@@ -21,7 +21,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
 
-from app.auth import Role, User, require_role
+from app.core.security import Role, get_current_user, require_role
 
 from app.models.report import ReportFormat, ReportMetadata, ReportRequest
 from app.services.alert_service import AlertService

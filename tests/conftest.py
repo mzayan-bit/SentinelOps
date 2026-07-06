@@ -14,7 +14,7 @@ def _disable_auth_for_tests():
     import os
     os.environ["TESTING"] = "1"
     
-    from app.auth import set_auth_enabled
+    from app.core.security import set_auth_enabled
     
     set_auth_enabled(False)
     yield

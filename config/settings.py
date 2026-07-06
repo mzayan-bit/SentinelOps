@@ -96,6 +96,14 @@ class Settings(BaseSettings):
     redis_port: int | None = None
 
     # ---------------------------------------------------------
+    # Authentication & Security
+    # ---------------------------------------------------------
+    secret_key: str = Field(default="dev-super-secret-key-change-me-in-production")
+    jwt_algorithm: str = Field(default="HS256")
+    access_token_expire_minutes: int = Field(default=15)
+    refresh_token_expire_minutes: int = Field(default=60 * 24 * 7) # 7 days
+    
+    # ---------------------------------------------------------
     # Email Notifications (SMTP)
     # ---------------------------------------------------------
     smtp_host: str | None = None
@@ -186,6 +194,8 @@ class Settings(BaseSettings):
     def validate_environment_defaults(self) -> "Settings":
         if self.is_prod and "*" in self.cors_allow_origins:
             raise ValueError("CORS_ALLOW_ORIGINS cannot contain '*' in production")
+        if self.is_prod and self.secret_key == "dev-super-secret-key-change-me-in-production":
+            raise ValueError("SECRET_KEY must be overridden with a secure random string in production")
         if self.postgres_port is not None and self.postgres_port <= 0:
             raise ValueError("POSTGRES_PORT must be positive")
         return self

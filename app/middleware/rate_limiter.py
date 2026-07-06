@@ -55,7 +55,7 @@ class RateLimiter(BaseHTTPMiddleware):
             return forwarded.split(",")[0].strip()
         return request.client.host if request.client else "unknown"
 
-    def _is_limited(self, key: str) -> tuple[bool, int]:
+    def _is_limited(self, key: str, rpm_limit: int) -> tuple[bool, int]:
         """Check if the key is rate-limited.
 
         Returns (is_limited, retry_after_seconds).
@@ -68,7 +68,7 @@ class RateLimiter(BaseHTTPMiddleware):
             self._hits[key] = [t for t in self._hits[key] if t > cutoff]
             count = len(self._hits[key])
 
-            if count >= self.rpm:
+            if count >= rpm_limit:
                 oldest = self._hits[key][0]
                 retry_after = int(oldest + self.window - now) + 1
                 return True, max(retry_after, 1)
@@ -89,8 +89,15 @@ class RateLimiter(BaseHTTPMiddleware):
         if path in ("/health", "/docs", "/redoc", "/openapi.json"):
             return await call_next(request)
 
+        # Strict limit for authentication endpoints (e.g., 5 RPM)
+        is_auth_route = path.startswith("/auth/")
+        rpm_limit = 5 if is_auth_route else self.rpm
+        
         ip = self._client_ip(request)
-        limited, retry_after = self._is_limited(ip)
+        # Use different keys for auth vs normal endpoints
+        rate_limit_key = f"auth:{ip}" if is_auth_route else f"api:{ip}"
+        
+        limited, retry_after = self._is_limited(rate_limit_key, rpm_limit)
 
         if limited:
             return JSONResponse(

@@ -4,7 +4,7 @@ import uuid
 
 from app.db.database import get_db
 from schemas.zone import ZoneCreate, ZoneUpdate, ZoneResponse
-from app.auth import require_role, Role, User
+from app.core.security import Role, get_current_user, require_role, User
 from app.repositories.zone_repository import zone_repository
 
 router = APIRouter(tags=["zones"])

@@ -7,7 +7,7 @@ import logging
 from typing import List
 
 from fastapi import APIRouter, HTTPException, status, Depends
-from app.auth import require_role, Role, User
+from app.core.security import Role, get_current_user, require_role, User
 
 from app.services.model_registry import model_registry_service
 from schemas.model_registry import RegisteredModel, ModelSwitchRequest

@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 from fastapi.websockets import WebSocketDisconnect
 
 from app.api.stream_routes import router
-from app.auth import _user_store, Role, User, set_auth_enabled
+from app.core.security import Role, User, set_auth_enabled
 
 
 app = FastAPI()

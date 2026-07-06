@@ -27,6 +27,151 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 
+import enum
+
+class Role(str, enum.Enum):
+    SUPER_ADMIN = "SUPER_ADMIN"
+    ORG_ADMIN = "ORG_ADMIN"
+    SITE_MANAGER = "SITE_MANAGER"
+    SUPERVISOR = "SUPERVISOR"
+    OPERATOR = "OPERATOR"
+    VIEWER = "VIEWER"
+
+# ---------------------------------------------------------------------------
+# Organization & Multi-Tenancy
+# ---------------------------------------------------------------------------
+class OrganizationModel(Base):
+    __tablename__ = "organizations"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    settings_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    limits_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+
+    users: Mapped[list["UserModel"]] = relationship(
+        back_populates="organization", cascade="all, delete-orphan"
+    )
+
+    def __repr__(self) -> str:
+        return f"<Organization {self.name!r} ({self.id})>"
+
+
+# ---------------------------------------------------------------------------
+# Users & Authentication
+# ---------------------------------------------------------------------------
+class UserModel(Base):
+    __tablename__ = "users"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    org_id: Mapped[uuid.UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("organizations.id"), nullable=True
+    )
+    email: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
+    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    full_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    
+    role: Mapped[Role] = mapped_column(SAEnum(Role, name="role_enum"), nullable=False, default=Role.VIEWER)
+    
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    is_suspended: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    
+    mfa_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    mfa_secret: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    
+    preferences_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    last_login: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    
+    # Relationships
+    organization: Mapped["OrganizationModel"] = relationship(back_populates="users")
+    sessions: Mapped[list["SessionModel"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
+
+    def __repr__(self) -> str:
+        return f"<User {self.email!r} ({self.id})>"
+
+
+# ---------------------------------------------------------------------------
+# Sessions (Refresh Tokens & Devices)
+# ---------------------------------------------------------------------------
+class SessionModel(Base):
+    __tablename__ = "sessions"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id"), nullable=False
+    )
+    refresh_token_hash: Mapped[str] = mapped_column(String(255), nullable=False, unique=True, index=True)
+    device_info: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    ip_address: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    is_revoked: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+    
+    # Relationships
+    user: Mapped["UserModel"] = relationship(back_populates="sessions")
+
+    def __repr__(self) -> str:
+        return f"<Session {self.id} for User {self.user_id}>"
+
+
+# ---------------------------------------------------------------------------
+# API Keys (Platform Integration)
+# ---------------------------------------------------------------------------
+class APIKeyModel(Base):
+    __tablename__ = "api_keys"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    org_id: Mapped[uuid.UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("organizations.id"), nullable=True
+    )
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    key_hash: Mapped[str] = mapped_column(String(255), nullable=False, unique=True, index=True)
+    scopes: Mapped[str] = mapped_column(Text, nullable=False, default="*") # Comma-separated scopes
+    
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    is_revoked: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+
+    def __repr__(self) -> str:
+        return f"<APIKey {self.name!r}>"
+
+
+# ---------------------------------------------------------------------------
+# Audit Logs
+# ---------------------------------------------------------------------------
+class AuditLogModel(Base):
+    __tablename__ = "audit_logs"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    org_id: Mapped[uuid.UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("organizations.id"), nullable=True
+    )
+    user_id: Mapped[uuid.UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id"), nullable=True
+    )
+    action: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    ip_address: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    
+    old_value: Mapped[str | None] = mapped_column(Text, nullable=True)
+    new_value: Mapped[str | None] = mapped_column(Text, nullable=True)
+    
+    timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+
+    def __repr__(self) -> str:
+        return f"<AuditLog {self.action!r} at {self.timestamp}>"
+
 
 # ---------------------------------------------------------------------------
 # Camera

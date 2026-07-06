@@ -29,7 +29,7 @@ from app.api.task_routes import router as task_router
 from app.api.zone_routes import router as zone_router
 from app.api.search_routes import router as search_router
 from app.api.model_routes import router as model_router
-from app.auth import set_auth_enabled
+from app.api.auth_routes import router as auth_router
 from app.core.errors import register_error_handlers
 from app.db.database import check_database, dispose_engine
 from app.middleware.request_context import RequestContextMiddleware
@@ -58,9 +58,6 @@ async def lifespan(app: FastAPI):
     if not testing:
         logger.info("Starting background demo simulation...")
         demo_runner.start()
-    
-    # Disable API key authentication for the local demo to avoid 401 errors
-    set_auth_enabled(False)
     
     logger.info("SentinelOps Alert Management API starting …")
     yield
@@ -93,6 +90,9 @@ app.add_middleware(
 )
 
 from app.middleware.rate_limiter import RateLimiter
+from app.middleware.security_headers import SecurityHeadersMiddleware
+
+app.add_middleware(SecurityHeadersMiddleware)
 
 app.add_middleware(
     RateLimiter,
@@ -112,6 +112,7 @@ app.include_router(task_router)
 app.include_router(zone_router)
 app.include_router(search_router)
 app.include_router(model_router)
+app.include_router(auth_router)
 
 
 @app.get("/health", tags=["System"])

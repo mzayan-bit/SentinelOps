@@ -11,7 +11,7 @@ from app.db.database import get_db
 from app.repositories.search_repository import search_repository
 from app.services.nlp_parser import NLPEngine
 from schemas.search import SearchResponse
-from app.auth import require_role, Role, User
+from app.core.security import Role, get_current_user, require_role, User
 
 router = APIRouter(prefix="/api/search", tags=["search"])
 

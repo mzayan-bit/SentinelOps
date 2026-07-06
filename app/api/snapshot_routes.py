@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, status
 from fastapi.responses import FileResponse
-from app.auth import Role, User, require_role
+from app.core.security import Role, get_current_user, require_role
 from app.services.snapshot_service import snapshot_service
 from app.services.task_worker import task_worker
 

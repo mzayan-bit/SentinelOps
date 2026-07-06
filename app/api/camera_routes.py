@@ -1,7 +1,7 @@
 import uuid
 from typing import List, Dict
 from fastapi import APIRouter, Depends, HTTPException, status
-from app.auth import Role, User, require_role
+from app.core.security import Role, get_current_user, require_role
 from app.services.camera_manager import CameraManager
 from app.services.health_monitor import health_monitor, CameraHealth
 from app.services.cache_service import cached, invalidate_prefix

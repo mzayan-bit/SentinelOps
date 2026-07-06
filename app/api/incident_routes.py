@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, Query, status
 from typing import List, Optional
-from app.auth import Role, User, require_role
+from app.core.security import Role, get_current_user, require_role
 from schemas.incident import IncidentCreate, IncidentResponse, SeverityLevel
 from app.services.incident_service import incident_service
 

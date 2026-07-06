@@ -28,3 +28,7 @@ pytest-asyncio
 redis>=5.0.0
 jinja2
 slack_sdk
+passlib[bcrypt]
+PyJWT
+pyotp
+email-validator
