@@ -89,6 +89,10 @@ class DemoRunner:
                 frames_to_skip = int(-sleep_time // frame_time)
                 if frames_to_skip > 0:
                     logger.debug(f"[{cam_id}] Pipeline overloaded (took {elapsed*1000:.1f}ms). Skipping {frames_to_skip} frames to maintain real-time.")
+                    
+                    from app.services.observability import observability_engine
+                    observability_engine.record_frame_drop(cam_id, frames_to_skip)
+                    
                     for _ in range(frames_to_skip):
                         cap.read() # Read and discard
 
