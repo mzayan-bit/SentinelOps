@@ -88,6 +88,12 @@ class AnalyticsService:
             dt = dt.replace(tzinfo=timezone.utc)
         return dt
 
+    @staticmethod
+    def _occurrence_count(alert: dict[str, Any]) -> int:
+        """Return total observed occurrences represented by a stored alert."""
+        duplicate_count = alert.get("duplicate_count") or 0
+        return max(int(duplicate_count) + 1, 1)
+
     # ------------------------------------------------------------------
     # Metrics
     # ------------------------------------------------------------------
@@ -102,7 +108,7 @@ class AnalyticsService:
 
         for alert in alerts:
             ts = self._parse_timestamp(alert["timestamp"])
-            day_counter[ts.strftime("%Y-%m-%d")] += 1
+            day_counter[ts.strftime("%Y-%m-%d")] += self._occurrence_count(alert)
 
         sorted_days = sorted(day_counter.items(), key=lambda x: x[0])
         data = [ViolationsPerDay(date=d, count=c) for d, c in sorted_days]
@@ -118,7 +124,9 @@ class AnalyticsService:
     ) -> ViolationsPerCameraResponse:
         """Group violation counts by camera, sorted descending by count."""
         alerts = self._fetch_alerts(date_from, date_to)
-        cam_counter: Counter[str] = Counter(a["camera_id"] for a in alerts)
+        cam_counter: Counter[str] = Counter()
+        for alert in alerts:
+            cam_counter[alert["camera_id"]] += self._occurrence_count(alert)
 
         sorted_cams = cam_counter.most_common()
         data = [ViolationsPerCamera(camera_id=cid, count=cnt) for cid, cnt in sorted_cams]
@@ -138,7 +146,7 @@ class AnalyticsService:
         If there are no alerts, returns 100 % compliance.
         """
         alerts = self._fetch_alerts(date_from, date_to)
-        total = len(alerts)
+        total = sum(self._occurrence_count(a) for a in alerts)
 
         if total == 0:
             return ComplianceRateResponse(
@@ -149,7 +157,7 @@ class AnalyticsService:
             )
 
         non_compliant = sum(
-            1 for a in alerts
+            self._occurrence_count(a) for a in alerts
             if a.get("alert_type") in {t.value for t in _PPE_VIOLATION_TYPES}
         )
         compliant = total - non_compliant
@@ -180,7 +188,7 @@ class AnalyticsService:
 
         for alert in alerts:
             ts = self._parse_timestamp(alert["timestamp"])
-            hour_counter[ts.hour] += 1
+            hour_counter[ts.hour] += self._occurrence_count(alert)
 
         data = [
             HourlyTrend(hour=h, count=hour_counter.get(h, 0))
@@ -203,7 +211,9 @@ class AnalyticsService:
     ) -> TopViolationTypesResponse:
         """Return the most frequent violation types, sorted descending."""
         alerts = self._fetch_alerts(date_from, date_to)
-        type_counter: Counter[str] = Counter(a["alert_type"] for a in alerts)
+        type_counter: Counter[str] = Counter()
+        for alert in alerts:
+            type_counter[alert["alert_type"]] += self._occurrence_count(alert)
 
         top = type_counter.most_common(limit)
         data = [ViolationTypeCount(violation_type=vt, count=cnt) for vt, cnt in top]

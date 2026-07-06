@@ -7,7 +7,7 @@ import { formatDistanceToNow } from "date-fns";
 import { axiosClient } from "@/lib/axios";
 import { type Alert } from "@/types";
 
-const fetcher = (url: string) => axiosClient.get<Alert[]>(url).then((res) => res.data);
+const fetcher = (url: string) => axiosClient.get<{alerts: Alert[]}>(url).then((res) => res.data.alerts);
 
 export function NotificationsPopover() {
   const [isOpen, setIsOpen] = useState(false);

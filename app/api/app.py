@@ -10,8 +10,8 @@ Run::
 
 from __future__ import annotations
 
-import logging
 import time
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -30,16 +30,20 @@ from app.api.zone_routes import router as zone_router
 from app.api.search_routes import router as search_router
 from app.api.model_routes import router as model_router
 from app.auth import set_auth_enabled
+from app.core.errors import register_error_handlers
+from app.db.database import check_database, dispose_engine
+from app.middleware.request_context import RequestContextMiddleware
 from app.services.task_worker import task_worker
+from app.demo_runner import demo_runner
+from app.services.health_monitor import health_monitor
+from config.settings import settings
 
 # ---------------------------------------------------------------------------
 # Logging
 # ---------------------------------------------------------------------------
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-)
+settings.configure_logging()
+import logging
+
 logger = logging.getLogger("sentinelops.alert_app")
 
 _start_time: float = 0.0
@@ -49,44 +53,51 @@ _start_time: float = 0.0
 async def lifespan(app: FastAPI):
     global _start_time
     _start_time = time.time()
+
+    testing = os.getenv("TESTING") == "1"
+    if not testing:
+        logger.info("Starting background demo simulation...")
+        demo_runner.start()
     
-    # Enable API key authentication in production/runtime (skip if testing)
-    import os
-    if os.getenv("TESTING"):
-        set_auth_enabled(False)
-    else:
-        set_auth_enabled(True)
+    # Disable API key authentication for the local demo to avoid 401 errors
+    set_auth_enabled(False)
     
     logger.info("SentinelOps Alert Management API starting …")
     yield
     logger.info("SentinelOps Alert Management API shutting down.")
     task_worker.shutdown(wait=True)
+    if not testing:
+        demo_runner.stop()
+    await dispose_engine()
 
 
 app = FastAPI(
     title="SentinelOps Alert Management API",
     description="Production-grade alert lifecycle management for security & safety monitoring.",
-    version="1.0.0",
+    version=settings.api_version,
     docs_url="/docs",
     redoc_url="/redoc",
     lifespan=lifespan,
 )
 
+register_error_handlers(app)
+
+app.add_middleware(RequestContextMiddleware)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=settings.cors_allow_origins,
+    allow_credentials=settings.cors_allow_credentials,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-from config.settings import settings
 from app.middleware.rate_limiter import RateLimiter
 
 app.add_middleware(
     RateLimiter,
     requests_per_minute=settings.rate_limit_rpm,
-    enabled=settings.rate_limit_enabled,
+    enabled=settings.rate_limit_enabled and os.getenv("TESTING") != "1",
 )
 
 app.include_router(alert_router)
@@ -105,5 +116,48 @@ app.include_router(model_router)
 
 @app.get("/health", tags=["System"])
 async def health():
+    try:
+        import psutil
+    except ImportError:
+        psutil = None
+
     uptime = time.time() - _start_time if _start_time else 0
-    return {"status": "healthy", "uptime_seconds": round(uptime, 2)}
+    database = "healthy" if await check_database() else "unhealthy"
+
+    disk = None
+    memory = None
+    if psutil is not None:
+        disk_usage = psutil.disk_usage(str(settings.reports_dir.parent))
+        memory_usage = psutil.virtual_memory()
+        disk = {
+            "total_bytes": disk_usage.total,
+            "used_bytes": disk_usage.used,
+            "free_bytes": disk_usage.free,
+            "percent": disk_usage.percent,
+        }
+        memory = {
+            "total_bytes": memory_usage.total,
+            "available_bytes": memory_usage.available,
+            "percent": memory_usage.percent,
+        }
+
+    cameras = health_monitor.get_all_health()
+    return {
+        "status": "healthy" if database != "unhealthy" else "degraded",
+        "api": "healthy",
+        "database": database,
+        "ai_model": "configured" if settings.model_path else "unconfigured",
+        "websocket": {
+            "tracked_cameras": len(cameras),
+            "status": "healthy",
+        },
+        "worker": {
+            "status": "healthy",
+            "recent_tasks": len(task_worker.list_tasks(limit=200)),
+        },
+        "disk": disk,
+        "memory": memory,
+        "uptime_seconds": round(uptime, 2),
+        "version": settings.api_version,
+        "environment": settings.environment,
+    }

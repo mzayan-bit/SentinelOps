@@ -55,9 +55,11 @@ class PredictionService:
         confidence: float = DEFAULT_CONFIDENCE,
         input_size: int = DEFAULT_INPUT_SIZE,
     ) -> None:
+        import threading
         self._loader = ModelLoader()
         self._default_conf = confidence
         self._input_size = input_size
+        self._inference_lock = threading.Lock()
 
     # ------------------------------------------------------------------
     # Public API
@@ -65,34 +67,23 @@ class PredictionService:
 
     def predict(
         self,
-        image_path: str | Path,
+        image_source: str | Path | np.ndarray,
         confidence: float | None = None,
     ) -> dict[str, Any]:
         """Run inference on a single image.
 
         Parameters
         ----------
-        image_path : str | Path
-            Path to an image file (JPEG, PNG, etc.).
+        image_source : str | Path | np.ndarray
+            Path to an image file or a loaded numpy array.
         confidence : float | None
             Override the default confidence threshold for this call.
 
         Returns
         -------
         dict
-            Structured result with keys:
-            ``image_path``, ``image_width``, ``image_height``,
-            ``num_detections``, ``detections``, ``inference_time_ms``.
-
-        Raises
-        ------
-        FileNotFoundError
-            If ``image_path`` does not exist.
+            Structured result.
         """
-        path = Path(image_path)
-        if not path.exists():
-            raise FileNotFoundError(f"Image not found: {path}")
-
         from app.services.threshold_service import threshold_service
         
         if confidence is not None:
@@ -102,20 +93,32 @@ class PredictionService:
 
         model = self._loader.get_model()
 
-        # Load image
-        img = Image.open(path).convert("RGB")
-        img_array = np.asarray(img)
+        if isinstance(image_source, (str, Path)):
+            path = Path(image_source)
+            if not path.exists():
+                raise FileNotFoundError(f"Image not found: {path}")
+            img = Image.open(path).convert("RGB")
+            img_array = np.asarray(img)
+            source_name = path.name
+        else:
+            img_array = image_source
+            source_name = "live_frame"
+            
         h, w = img_array.shape[:2]
 
-        logger.info("Running inference on '%s' (conf=%.2f) …", path.name, conf)
+        logger.info("Running inference on '%s' (conf=%.2f) …", source_name, min_conf)
 
         t0 = time.perf_counter()
-        results = model.predict(
-            source=img_array,
-            conf=min_conf,
-            imgsz=self._input_size,
-            verbose=False,
-        )
+        
+        # YOLO model.predict() is NOT thread-safe. We must lock it!
+        with self._inference_lock:
+            results = model.predict(
+                source=img_array,
+                conf=min_conf,
+                imgsz=self._input_size,
+                verbose=False,
+            )
+
         elapsed_ms = (time.perf_counter() - t0) * 1000
 
         detections = self._parse_results(results, model, explicit_confidence=confidence)
@@ -127,7 +130,7 @@ class PredictionService:
         )
 
         return {
-            "image_path": str(path),
+            "image_path": source_name,
             "image_width": w,
             "image_height": h,
             "num_detections": len(detections),

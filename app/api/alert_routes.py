@@ -28,6 +28,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.auth import Role, User, require_role
+from app.schemas.pagination import PaginationParams, build_page_meta
 
 from app.models.alert import (
     Alert,
@@ -81,6 +82,8 @@ async def list_alerts(
     date_to: datetime | None = Query(default=None),
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=50, ge=1, le=100),
+    page: int | None = Query(default=None, ge=1),
+    page_size: int | None = Query(default=None, ge=1, le=100),
     sort_by: str = Query(default="timestamp"),
     sort_desc: bool = Query(default=True),
     user: User = Depends(require_role(Role.VIEWER)),
@@ -99,12 +102,28 @@ async def list_alerts(
     # Sorting
     alerts.sort(key=lambda a: getattr(a, sort_by, a.timestamp), reverse=sort_desc)
     
+    params = PaginationParams(
+        limit=limit,
+        offset=skip,
+        page=page,
+        page_size=page_size,
+        sort_by=sort_by,
+        order="desc" if sort_desc else "asc",
+    )
     total = len(alerts)
-    
-    # Pagination
-    paginated = alerts[skip:skip + limit]
-    
-    return AlertListResponse(total=total, alerts=paginated)
+    start = params.effective_offset
+    paginated = alerts[start:start + params.effective_limit]
+    meta = build_page_meta(total, params)
+
+    return AlertListResponse(
+        total=total,
+        alerts=paginated,
+        page=meta.page,
+        page_size=meta.page_size,
+        pages=meta.pages,
+        next=meta.next,
+        previous=meta.previous,
+    )
 
 
 @router.get(

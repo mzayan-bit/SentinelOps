@@ -27,7 +27,7 @@ graph TD
 | **Experiment Tracking** | MLflow + DagsHub |
 | **Modeling** | Ultralytics YOLO11 |
 | **Inference API** | FastAPI, Uvicorn |
-| **Dashboard** | Streamlit |
+| **Frontend App** | Next.js, React, Tailwind CSS |
 | **Monitoring** | Evidently |
 | **Testing & Formatting** | Pytest, Black, Flake8 |
 
@@ -125,9 +125,34 @@ results = model.predict(
     source="video.mp4",
     conf=0.25,
     show=True,
+    show=True,
     save=True
 )
 ```
+
+---
+
+## How to Run Locally
+
+You can run SentinelOps locally by starting both the FastAPI backend and the Next.js frontend.
+
+### 1. Start the Backend (FastAPI)
+Open a terminal, activate your virtual environment, and run the FastAPI server:
+```bash
+# From the root of the SentinelOps project
+source venv/bin/activate
+uvicorn app.api.app:app --port 8001
+```
+The API will be available at `http://localhost:8001`.
+
+### 2. Start the Frontend (Next.js)
+Open a new terminal, navigate to the `frontend` directory, and start the Next.js development server:
+```bash
+cd frontend
+npm install
+npm run dev
+```
+The web application will be available at `http://localhost:3000`.
 
 ---
 
@@ -203,7 +228,7 @@ docker-compose down
 .
 ├── app/                # Alert management system (API + service)
 ├── config/             # Centralised settings
-├── dashboard/          # Streamlit dashboards
+├── frontend/           # Next.js web application (Dashboard & Live Streams)
 ├── docs/               # Documentation & training artifacts
 │   └── training/       # Evaluation curves & confusion matrices
 ├── inference/          # Model loader, predictor, tracker, compliance

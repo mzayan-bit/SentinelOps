@@ -180,6 +180,22 @@ class PPEViolationEngine:
     # ------------------------------------------------------------------
 
     @staticmethod
+    def _nms(items: list[dict[str, Any]], iou_threshold: float = 0.5) -> list[dict[str, Any]]:
+        if not items:
+            return []
+        items_sorted = sorted(items, key=lambda x: x["confidence"], reverse=True)
+        keep = []
+        for item in items_sorted:
+            overlap = False
+            for kept in keep:
+                if _compute_iou(item["bounding_box"], kept["bounding_box"]) > iou_threshold:
+                    overlap = True
+                    break
+            if not overlap:
+                keep.append(item)
+        return keep
+
+    @staticmethod
     def _merge_equipment_locations(
         helmets: list[dict[str, Any]],
         vests: list[dict[str, Any]],
@@ -187,26 +203,51 @@ class PPEViolationEngine:
         """Build a list of approximate person locations from PPE detections.
 
         Each unique equipment bbox is treated as a potential person region.
-        Duplicates are avoided by merging overlapping helmet + vest pairs.
+        Duplicates are avoided by pairing closest helmets and vests.
         """
+        import math
+        
+        # Apply NMS to remove duplicate overlapping boxes from YOLO
+        helmets = PPEViolationEngine._nms(helmets)
+        vests = PPEViolationEngine._nms(vests)
+        
         locations: list[dict[str, Any]] = []
         used_vests: set[int] = set()
 
         for helmet in helmets:
             best_vest: dict[str, Any] | None = None
-            best_iou: float = 0.0
+            min_dist: float = float('inf')
+            best_vest_idx = -1
+
+            hx_center = (helmet["bounding_box"]["x_min"] + helmet["bounding_box"]["x_max"]) / 2
+            hy_center = (helmet["bounding_box"]["y_min"] + helmet["bounding_box"]["y_max"]) / 2
+            h_height = helmet["bounding_box"]["height"]
 
             for idx, vest in enumerate(vests):
                 if idx in used_vests:
                     continue
-                iou = _compute_iou(helmet["bounding_box"], vest["bounding_box"])
-                if iou > best_iou:
-                    best_iou = iou
+                vx_center = (vest["bounding_box"]["x_min"] + vest["bounding_box"]["x_max"]) / 2
+                vy_center = (vest["bounding_box"]["y_min"] + vest["bounding_box"]["y_max"]) / 2
+                v_height = vest["bounding_box"]["height"]
+                
+                # Distance between centers
+                dist = math.hypot(hx_center - vx_center, hy_center - vy_center)
+                
+                # Dynamic threshold: The distance between a helmet and vest on the same person 
+                # shouldn't exceed roughly the height of the vest + height of helmet.
+                max_allowed_dist = (h_height + v_height) * 1.5
+                
+                # We expect the helmet to be above or slightly overlapping the vest (y increases downwards)
+                # so hy_center should generally be < vy_center + some margin
+                is_above = hy_center < vy_center + (v_height * 0.5)
+
+                if dist < min_dist and dist < max_allowed_dist and is_above:
+                    min_dist = dist
                     best_vest = vest
                     best_vest_idx = idx
 
             merged_bbox = helmet["bounding_box"]
-            if best_vest is not None and best_iou > 0:
+            if best_vest is not None:
                 merged_bbox = _union_bbox(helmet["bounding_box"], best_vest["bounding_box"])
                 used_vests.add(best_vest_idx)
 

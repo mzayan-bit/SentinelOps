@@ -1,4 +1,5 @@
 import logging
+from typing import Tuple, Any, Dict
 from inference.predictor import PredictionService
 from inference.violation_engine import PPEViolationEngine
 from app.services.event_recorder import event_recorder
@@ -16,9 +17,10 @@ class InferencePipeline:
         self.predictor = PredictionService()
         self.engine = PPEViolationEngine()
 
-    def process_frame(self, camera_id: str, frame):
+    def process_frame(self, camera_id: str, frame: Any) -> Tuple[Dict[str, Any], Dict[str, Any]]:
         """
         Main pipeline hook. Processes a raw frame from a camera stream.
+        Returns the prediction dict and the assessment dict.
         """
         # 1. Always push frame to continuous event recorder buffer
         event_recorder.push_frame(camera_id, frame)
@@ -43,3 +45,5 @@ class InferencePipeline:
             
             # Trigger the event recorder to save the 20-second MP4 clip
             event_recorder.trigger_recording(camera_id, metadata=assessment)
+
+        return prediction, assessment

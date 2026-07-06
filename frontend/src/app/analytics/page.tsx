@@ -21,9 +21,9 @@ import { api } from "@/lib/api-client";
 import { PageHeader, Card, CardHeader, CardTitle, CardContent, Badge } from "@/components/ui";
 import { type AnalyticsSummaryResponse, type RecommendationResponse, type Alert } from "@/types";
 
-const fetcherSummary = () => api.get<AnalyticsSummaryResponse>("/api/analytics/summary");
-const fetcherRecs = () => api.get<RecommendationResponse>("/api/analytics/recommendations");
-const fetcherAlerts = () => api.get<Alert[]>("/api/alerts");
+const fetcherSummary = () => api.get<AnalyticsSummaryResponse>("/analytics/summary");
+const fetcherRecs = () => api.get<RecommendationResponse>("/analytics/recommendations");
+const fetcherAlerts = () => api.get<{alerts: Alert[]}>("/alerts").then(res => res.alerts as unknown as Alert[]);
 
 // Colors from our global theme
 const COLORS = {
@@ -38,14 +38,14 @@ const COLORS = {
 
 export default function AnalyticsPage() {
   const { data: summary, isLoading: isLoadingSum } = useSWR(
-    "/api/analytics/summary",
+    "/analytics/summary",
     fetcherSummary,
   );
   const { data: recs, isLoading: isLoadingRecs } = useSWR(
-    "/api/analytics/recommendations",
+    "/analytics/recommendations",
     fetcherRecs,
   );
-  const { data: alerts, isLoading: isLoadingAlerts } = useSWR("/api/alerts", fetcherAlerts);
+  const { data: alerts, isLoading: isLoadingAlerts } = useSWR("/alerts", fetcherAlerts);
 
   const isLoading = isLoadingSum || isLoadingRecs || isLoadingAlerts;
 

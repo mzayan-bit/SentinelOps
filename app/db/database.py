@@ -7,6 +7,7 @@ Provides SQLAlchemy asynchronous engine configuration and session factories.
 import logging
 from typing import AsyncGenerator
 
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from config.settings import settings
@@ -37,6 +38,22 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
     async with AsyncSessionLocal() as session:
         try:
             yield session
-        except Exception as e:
+        except Exception:
             await session.rollback()
-            raise e
+            raise
+
+
+async def check_database() -> bool:
+    """Run a lightweight connectivity check against the configured database."""
+    try:
+        async with AsyncSessionLocal() as session:
+            await session.execute(text("SELECT 1"))
+        return True
+    except Exception:
+        logger.exception("Database connectivity check failed")
+        return False
+
+
+async def dispose_engine() -> None:
+    """Close pooled database connections during application shutdown."""
+    await engine.dispose()

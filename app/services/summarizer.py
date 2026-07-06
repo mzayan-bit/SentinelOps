@@ -98,10 +98,11 @@ class IncidentSummarizer:
             summary_text += f"{i}. {rec}\n"
 
         return {
+            "summary": summary_text.strip(),
             "what": what_str,
             "when": when_str,
             "where": where_str,
             "severity": severity_str,
             "recommendations": recommendations,
-            "summary_text": summary_text.strip()
+            "related_events_count": 0
         }

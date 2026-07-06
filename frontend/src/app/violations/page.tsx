@@ -32,14 +32,14 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui";
-import { type Alert, type IncidentSummaryResponse } from "@/types";
+import { type Incident, type IncidentSummaryResponse } from "@/types";
 
-const fetcherAlerts = () => api.get<Alert[]>("/api/alerts");
+const fetcherIncidents = () => api.get<Incident[]>("/api/incidents");
 const fetcherSummary = (id: string) =>
   api.get<IncidentSummaryResponse>(`/api/incidents/${id}/summary`);
 
 const ITEMS_PER_PAGE = 10;
-type SeverityFilter = "ALL" | "critical" | "high" | "medium" | "low";
+type SeverityFilter = "ALL" | "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
 
 function SummaryDialog({
   incidentId,
@@ -157,8 +157,8 @@ function SummaryDialog({
 }
 
 export default function ViolationsPage() {
-  const { data: alerts, isLoading } = useSWR("/api/alerts", fetcherAlerts, {
-    refreshInterval: 10000,
+  const { data: incidents, isLoading, error } = useSWR("/api/incidents", fetcherIncidents, {
+    refreshInterval: 5000,
   });
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -169,28 +169,28 @@ export default function ViolationsPage() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-  const handleViewSummary = (alert: Alert) => {
-    setSelectedIncident(alert.id);
-    setSelectedImage(alert.image_path);
+  const handleViewSummary = (incident: Incident) => {
+    setSelectedIncident(incident.id);
+    setSelectedImage(incident.screenshot_path);
     setIsDialogOpen(true);
   };
 
   // 1. Filter
-  const filteredAlerts =
-    alerts?.filter((alert) => {
+  const filteredIncidents =
+    incidents?.filter((incident) => {
       const matchesSearch =
-        alert.camera_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        alert.alert_type.toLowerCase().includes(searchQuery.toLowerCase());
+        incident.camera_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        incident.description.toLowerCase().includes(searchQuery.toLowerCase());
 
       if (!matchesSearch) return false;
-      if (severityFilter !== "ALL" && alert.severity !== severityFilter) return false;
+      if (severityFilter !== "ALL" && incident.severity !== severityFilter) return false;
 
       return true;
     }) || [];
 
   // 2. Paginate
-  const totalPages = Math.ceil(filteredAlerts.length / ITEMS_PER_PAGE);
-  const paginatedAlerts = filteredAlerts.slice(
+  const totalPages = Math.ceil(filteredIncidents.length / ITEMS_PER_PAGE);
+  const paginatedIncidents = filteredIncidents.slice(
     (currentPage - 1) * ITEMS_PER_PAGE,
     currentPage * ITEMS_PER_PAGE,
   );
@@ -234,10 +234,10 @@ export default function ViolationsPage() {
             className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm capitalize focus:ring-1 focus:ring-[var(--color-accent)] focus:outline-none"
           >
             <option value="ALL">All Severities</option>
-            <option value="critical">Critical</option>
-            <option value="high">High</option>
-            <option value="medium">Medium</option>
-            <option value="low">Low</option>
+            <option value="CRITICAL">Critical</option>
+            <option value="HIGH">High</option>
+            <option value="MEDIUM">Medium</option>
+            <option value="LOW">Low</option>
           </select>
         </div>
       </div>
@@ -257,39 +257,39 @@ export default function ViolationsPage() {
             {isLoading ? (
               <TableRow>
                 <TableCell colSpan={5} className="h-24 text-center text-[var(--color-muted)]">
-                  Loading alerts...
+                  Loading incidents...
                 </TableCell>
               </TableRow>
-            ) : filteredAlerts.length === 0 ? (
+            ) : filteredIncidents.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={5} className="h-24 text-center text-[var(--color-muted)]">
                   No violations match your search criteria.
                 </TableCell>
               </TableRow>
             ) : (
-              paginatedAlerts.map((alert) => (
-                <TableRow key={alert.id}>
+              paginatedIncidents.map((incident) => (
+                <TableRow key={incident.id}>
                   <TableCell className="font-mono text-xs">
-                    {format(new Date(alert.timestamp), "MMM d, HH:mm:ss")}
+                    {format(new Date(incident.timestamp * 1000), "MMM d, HH:mm:ss")}
                   </TableCell>
                   <TableCell className="font-mono text-xs text-[var(--color-muted)]">
-                    {alert.camera_id.split("-")[0]}
+                    {incident.camera_id.split("-")[0]}
                   </TableCell>
                   <TableCell className="font-medium capitalize">
-                    {alert.alert_type.replace(/_/g, " ")}
+                    {incident.description}
                   </TableCell>
                   <TableCell>
                     <Badge
                       variant={
-                        alert.severity === "high" || alert.severity === "critical"
+                        incident.severity === "HIGH" || incident.severity === "CRITICAL"
                           ? "destructive"
-                          : alert.severity === "medium"
+                          : incident.severity === "MEDIUM"
                             ? "warning"
                             : "secondary"
                       }
                       className="uppercase"
                     >
-                      {alert.severity}
+                      {incident.severity}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
@@ -297,7 +297,7 @@ export default function ViolationsPage() {
                       variant="ghost"
                       size="sm"
                       className="h-8"
-                      onClick={() => handleViewSummary(alert)}
+                      onClick={() => handleViewSummary(incident)}
                     >
                       <Eye className="mr-2 h-4 w-4" />
                       View AI Summary
@@ -314,8 +314,8 @@ export default function ViolationsPage() {
           <div className="flex items-center justify-between border-t border-[var(--color-border)] p-4">
             <span className="text-sm text-[var(--color-muted)]">
               Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1} to{" "}
-              {Math.min(currentPage * ITEMS_PER_PAGE, filteredAlerts.length)} of{" "}
-              {filteredAlerts.length} entries
+              {Math.min(currentPage * ITEMS_PER_PAGE, filteredIncidents.length)} of{" "}
+              {filteredIncidents.length} entries
             </span>
             <div className="flex items-center gap-2">
               <Button

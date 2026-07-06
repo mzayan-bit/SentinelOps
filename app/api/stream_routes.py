@@ -1,4 +1,5 @@
 import logging
+import asyncio
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query, status
 from app.services.stream_manager import stream_manager
 from app.auth import _AUTH_ENABLED, _user_store, Role
@@ -23,7 +24,8 @@ async def stream_camera(
     - violation count
     - timestamps
     """
-    if _AUTH_ENABLED:
+    import app.auth
+    if app.auth._AUTH_ENABLED:
         key = api_key or websocket.headers.get("x-api-key")
         if not key:
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
@@ -37,12 +39,16 @@ async def stream_camera(
     await stream_manager.connect(websocket, camera_id)
     try:
         while True:
-            # Keep connection alive; wait for client messages if they send commands
-            # Mostly, clients just listen to the broadcasted frames.
-            data = await websocket.receive_text()
-            # Handle incoming client messages if necessary (e.g., ping)
+            try:
+                data = await asyncio.wait_for(websocket.receive_text(), timeout=30)
+            except TimeoutError:
+                await websocket.send_json({"type": "heartbeat"})
+                continue
+
+            if data == "ping":
+                await websocket.send_text("pong")
     except WebSocketDisconnect:
-        stream_manager.disconnect(websocket, camera_id)
+        await stream_manager.disconnect(websocket, camera_id)
     except Exception as e:
-        logger.error(f"WebSocket error on stream {camera_id}: {e}")
-        stream_manager.disconnect(websocket, camera_id)
+        logger.exception("WebSocket error on stream %s: %s", camera_id, e)
+        await stream_manager.disconnect(websocket, camera_id)

@@ -156,6 +156,11 @@ class AlertListResponse(BaseModel):
 
     total: int
     alerts: list[Alert]
+    page: int = 1
+    page_size: int = 50
+    pages: int = 0
+    next: int | None = None
+    previous: int | None = None
 
 
 class AlertStatsResponse(BaseModel):

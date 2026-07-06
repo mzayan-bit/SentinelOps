@@ -47,8 +47,8 @@ import {
 } from "@/types";
 
 const fetcherMetrics = () => api.get<PlatformMetricsResponse>("/api/metrics");
-const fetcherSummary = () => api.get<AnalyticsSummaryResponse>("/api/analytics/summary");
-const fetcherAlerts = () => api.get<Alert[]>("/api/alerts");
+const fetcherSummary = () => api.get<AnalyticsSummaryResponse>("/analytics/summary");
+const fetcherAlerts = () => api.get<{alerts: Alert[]}>("/alerts").then(res => res.alerts as unknown as Alert[]);
 const fetcherCameras = () => api.get<CameraType[]>("/api/cameras");
 
 const COLORS = {
@@ -63,8 +63,8 @@ const COLORS = {
 
 export default function DashboardPage() {
   const { data: metrics } = useSWR("/api/metrics", fetcherMetrics, { refreshInterval: 5000 });
-  const { data: summary } = useSWR("/api/analytics/summary", fetcherSummary);
-  const { data: alerts } = useSWR("/api/alerts", fetcherAlerts, { refreshInterval: 10000 });
+  const { data: summary } = useSWR("/analytics/summary", fetcherSummary);
+  const { data: alerts } = useSWR("/alerts", fetcherAlerts, { refreshInterval: 10000 });
   const { data: cameras } = useSWR("/api/cameras", fetcherCameras, { refreshInterval: 5000 });
 
   const isLoading = !metrics && !summary && !alerts && !cameras;

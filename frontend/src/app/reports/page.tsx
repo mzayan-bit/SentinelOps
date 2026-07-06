@@ -33,7 +33,7 @@ import {
 } from "@/components/ui";
 import { type ReportMetadata, type ReportRequest, type ReportFormat } from "@/types";
 
-const fetcherReports = () => api.get<ReportMetadata[]>("/api/reports");
+const fetcherReports = () => api.get<ReportMetadata[]>("/reports");
 
 export default function ReportsPage() {
   const {
@@ -41,7 +41,7 @@ export default function ReportsPage() {
     error,
     isLoading,
     mutate,
-  } = useSWR("/api/reports", fetcherReports, {
+  } = useSWR("/reports", fetcherReports, {
     refreshInterval: 10000,
   });
 
@@ -70,15 +70,15 @@ export default function ReportsPage() {
         title: title,
       };
 
-      await api.post("/api/reports/generate", payload);
+      await api.post("/reports/generate", payload);
 
       // Close modal and let SWR poll for the completed report
       setIsDialogOpen(false);
 
       // Force an immediate refresh
       setTimeout(() => mutate(), 1000);
-    } catch (err) {
-      console.error("Failed to generate report:", err);
+    } catch {
+      // The table error state is handled by SWR; generation errors keep the dialog open.
     } finally {
       setIsGenerating(false);
     }
@@ -170,7 +170,7 @@ export default function ReportsPage() {
                   </TableCell>
                   <TableCell className="text-right">
                     <Button variant="ghost" size="sm" className="h-8" asChild>
-                      <a href={`${env.apiUrl}/api/reports/${report.report_id}/download`} download>
+                      <a href={`${env.apiUrl}/reports/${report.report_id}/download`} download>
                         <Download className="mr-2 h-4 w-4" />
                         Download
                       </a>

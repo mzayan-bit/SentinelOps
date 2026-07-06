@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { User, ChevronDown, Settings, BookOpen, LogOut } from "lucide-react";
 import { toast } from "sonner";
+import Link from "next/link";
 
 export function UserDropdown() {
   const [isOpen, setIsOpen] = useState(false);
@@ -46,20 +47,24 @@ export function UserDropdown() {
             <p className="text-xs text-muted truncate">admin@sentinelops.ai</p>
           </div>
           <div className="p-1">
-            <button 
-              onClick={() => { setIsOpen(false); toast.info("Settings panel coming soon"); }}
+            <Link 
+              href="/settings"
+              onClick={() => setIsOpen(false)}
               className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-foreground hover:bg-surface transition-colors"
             >
               <Settings className="h-4 w-4 text-muted" />
               Settings
-            </button>
-            <button 
-              onClick={() => { setIsOpen(false); toast.info("Redirecting to documentation..."); }}
+            </Link>
+            <a 
+              href="https://github.com/mzayan-bit/SentinelOps#readme"
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => setIsOpen(false)}
               className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-foreground hover:bg-surface transition-colors"
             >
               <BookOpen className="h-4 w-4 text-muted" />
               Documentation
-            </button>
+            </a>
           </div>
           <div className="border-t border-border p-1">
             <button 

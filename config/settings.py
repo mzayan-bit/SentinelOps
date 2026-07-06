@@ -20,7 +20,7 @@ import os
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 logger = logging.getLogger("sentinelops.settings")
@@ -52,6 +52,11 @@ class Settings(BaseSettings):
     # API configuration
     api_host: str = Field(default="0.0.0.0")
     api_port: int = Field(default=8000)
+    api_version: str = Field(default="1.0.0")
+    cors_allow_origins: list[str] = Field(default_factory=lambda: ["http://localhost:3000"])
+    cors_allow_credentials: bool = Field(default=True)
+    request_id_header: str = Field(default="X-Request-ID")
+    structured_json_logs: bool = Field(default=True)
 
     # Core logic configuration
     confidence_threshold: float = Field(default=0.25, ge=0.0, le=1.0)
@@ -65,6 +70,7 @@ class Settings(BaseSettings):
     escalate_to_critical_threshold: int = Field(default=10, description="Duplicates needed to escalate to Critical")
     rate_limit_rpm: int = Field(default=60, ge=0, description="Max API requests per minute per client IP (0 = unlimited).")
     rate_limit_enabled: bool = Field(default=True, description="Enable/disable API rate limiting.")
+    task_worker_max_workers: int = Field(default=4, ge=1, le=32)
     mlflow_tracking_uri: str = Field(default="http://localhost:5000")
 
     # ---------------------------------------------------------
@@ -141,21 +147,54 @@ class Settings(BaseSettings):
         extra="ignore"
     )
 
-    def __post_init__(self):
-        """Additional manual validations that Pydantic Field constraints don't cover easily."""
-        if self.log_level not in _VALID_LOG_LEVELS:
-            raise ValueError(f"LOG_LEVEL must be one of {sorted(_VALID_LOG_LEVELS)}, got '{self.log_level}'")
-        if self.device not in _VALID_DEVICES:
-            raise ValueError(f"DEVICE must be one of {sorted(_VALID_DEVICES)}, got '{self.device}'")
+    @property
+    def is_dev(self) -> bool:
+        return self.environment == "dev"
+
+    @property
+    def is_prod(self) -> bool:
+        return self.environment == "prod"
+
+    @property
+    def is_test(self) -> bool:
+        return self.environment == "test"
+
+    @field_validator("log_level")
+    @classmethod
+    def validate_log_level(cls, value: str) -> str:
+        normalized = value.upper()
+        if normalized not in _VALID_LOG_LEVELS:
+            raise ValueError(f"LOG_LEVEL must be one of {sorted(_VALID_LOG_LEVELS)}, got '{value}'")
+        return normalized
+
+    @field_validator("device")
+    @classmethod
+    def validate_device(cls, value: str) -> str:
+        normalized = value.lower()
+        if normalized not in _VALID_DEVICES:
+            raise ValueError(f"DEVICE must be one of {sorted(_VALID_DEVICES)}, got '{value}'")
+        return normalized
+
+    @field_validator("cors_allow_origins", mode="before")
+    @classmethod
+    def parse_cors_origins(cls, value: str | list[str]) -> list[str]:
+        if isinstance(value, str):
+            return [origin.strip() for origin in value.split(",") if origin.strip()]
+        return value
+
+    @model_validator(mode="after")
+    def validate_environment_defaults(self) -> "Settings":
+        if self.is_prod and "*" in self.cors_allow_origins:
+            raise ValueError("CORS_ALLOW_ORIGINS cannot contain '*' in production")
+        if self.postgres_port is not None and self.postgres_port <= 0:
+            raise ValueError("POSTGRES_PORT must be positive")
+        return self
 
     def configure_logging(self) -> None:
         """Apply `log_level` to the root logger."""
-        logging.basicConfig(
-            level=getattr(logging, self.log_level.upper(), logging.INFO),
-            format="%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
-            datefmt="%Y-%m-%d %H:%M:%S",
-            force=True,
-        )
+        from app.core.logging import configure_logging
+
+        configure_logging(self.log_level, json_logs=self.structured_json_logs)
 
 
 # Global singleton

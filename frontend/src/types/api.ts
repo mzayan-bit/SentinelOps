@@ -9,9 +9,12 @@
 
 export interface Alert {
   id: string;
+  alert_id?: string;
+  title?: string;
+  description?: string;
   camera_id: string;
   alert_type: string;
-  severity: "low" | "medium" | "high" | "critical";
+  severity: "low" | "medium" | "high" | "critical" | "LOW" | "MEDIUM" | "HIGH" | "CRITICAL" | "Low" | "Medium" | "High" | "Critical";
   confidence: number;
   status: string;
   assigned_to: string | null;

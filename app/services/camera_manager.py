@@ -117,7 +117,7 @@ class CameraManager:
         try:
             loop = asyncio.get_running_loop()
         except RuntimeError:
-            loop = asyncio.get_event_loop()
+            loop = None
 
         task_worker.submit(
             tracker.process_video,

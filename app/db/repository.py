@@ -9,7 +9,7 @@ from typing import Any, Generic, Sequence, Type, TypeVar
 from uuid import UUID
 
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.base import Base
@@ -37,12 +37,27 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         return await db.get(self.model, id)
 
     async def get_multi(
-        self, db: AsyncSession, *, skip: int = 0, limit: int = 100
+        self,
+        db: AsyncSession,
+        *,
+        skip: int = 0,
+        limit: int = 100,
+        sort_by: str | None = None,
+        sort_desc: bool = False,
     ) -> Sequence[ModelType]:
         """Fetch multiple records with pagination."""
-        stmt = select(self.model).offset(skip).limit(limit)
+        stmt = select(self.model)
+        if sort_by and hasattr(self.model, sort_by):
+            column = getattr(self.model, sort_by)
+            stmt = stmt.order_by(column.desc() if sort_desc else column.asc())
+        stmt = stmt.offset(skip).limit(limit)
         result = await db.execute(stmt)
         return result.scalars().all()
+
+    async def count(self, db: AsyncSession) -> int:
+        """Count all records for this repository's model."""
+        result = await db.execute(select(func.count()).select_from(self.model))
+        return int(result.scalar_one())
 
     async def create(self, db: AsyncSession, *, obj_in: CreateSchemaType | dict[str, Any]) -> ModelType:
         """Create a new record."""

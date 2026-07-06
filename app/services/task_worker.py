@@ -144,12 +144,27 @@ class TaskWorker:
             If True, block until all in-flight tasks finish.
         """
         logger.info("TaskWorker shutting down (wait=%s) …", wait)
+        with self._lock:
+            for task_id, future in self._futures.items():
+                if not future.done():
+                    future.cancel()
+                    task = self._tasks.get(task_id)
+                    if task and task.status == TaskStatus.PENDING:
+                        task.status = TaskStatus.FAILED
+                        task.completed_at = time.time()
+                        task.error = "Task cancelled during worker shutdown."
         self._executor.shutdown(wait=wait)
         # Re-create the pool so the singleton stays functional
         self._executor = ThreadPoolExecutor(
             max_workers=self._max_workers,
             thread_name_prefix="sentinelops-worker",
         )
+        with self._lock:
+            self._futures = {
+                task_id: future
+                for task_id, future in self._futures.items()
+                if not future.done()
+            }
         logger.info("TaskWorker shut down complete.")
 
     # ------------------------------------------------------------------
@@ -188,4 +203,11 @@ class TaskWorker:
 # ---------------------------------------------------------------------------
 # Module-level singleton
 # ---------------------------------------------------------------------------
-task_worker = TaskWorker()
+try:
+    from config.settings import settings
+
+    _max_workers = settings.task_worker_max_workers
+except Exception:
+    _max_workers = 4
+
+task_worker = TaskWorker(max_workers=_max_workers)
