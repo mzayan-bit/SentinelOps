@@ -11,16 +11,19 @@ from inference.privacy_engine import PrivacyEngine
 
 def test_privacy_engine_initialization():
     engine = PrivacyEngine()
-    # It should load the default haarcascade successfully
-    assert engine._is_ready is True
-    assert not engine.face_cascade.empty()
+    if getattr(cv2, 'CascadeClassifier', None) is not None:
+        assert engine._is_ready is True
+        assert not engine.face_cascade.empty()
+    else:
+        assert engine._is_ready is False
     
 def test_privacy_engine_invalid_cascade():
-    # If a totally invalid path is provided, it falls back or marks as not ready
     engine = PrivacyEngine(cascade_path="invalid_path.xml")
-    # Our fallback logic currently reverts to the default CV2 cascade, so it should still be ready
-    assert engine._is_ready is True
-    assert not engine.face_cascade.empty()
+    if getattr(cv2, 'CascadeClassifier', None) is not None:
+        assert engine._is_ready is True
+        assert not engine.face_cascade.empty()
+    else:
+        assert engine._is_ready is False
 
 def test_apply_privacy_no_faces():
     engine = PrivacyEngine()

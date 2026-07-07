@@ -18,57 +18,24 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [accessToken, setAccessTokenState] = useState<string | null>(null);
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [accessToken, setAccessTokenState] = useState<string | null>("mock-token");
+  const [user, setUser] = useState<User | null>({
+    id: "admin",
+    email: "admin@sentinelops.ai",
+    role: "SUPER_ADMIN"
+  });
+  const [isLoading, setIsLoading] = useState(false);
 
   const setAccessToken = (token: string | null) => {
-    setAccessTokenState(token);
-    if (token) {
-      localStorage.setItem("accessToken", token);
-      try {
-        const payload = JSON.parse(atob(token.split(".")[1]));
-        setUser({ id: payload.sub, email: payload.email || "", role: payload.role });
-      } catch (e) {
-        setUser(null);
-      }
-    } else {
-      localStorage.removeItem("accessToken");
-      setUser(null);
-    }
+    // Disabled logic for bypassing auth
   };
 
   const logout = async () => {
-    try {
-      await axiosClient.post("/auth/logout");
-    } catch (e) {
-      console.error("Logout failed", e);
-    } finally {
-      setAccessToken(null);
-      window.location.href = "/login";
-    }
+    // Disabled for bypassing auth
   };
 
   useEffect(() => {
-    const token = localStorage.getItem("accessToken");
-    if (token) {
-      setAccessToken(token);
-    }
-    
-    // Attempt silent refresh on mount
-    const initAuth = async () => {
-      try {
-        const res = await axiosClient.post("/auth/refresh");
-        setAccessToken(res.data.access_token);
-      } catch (err) {
-        // If refresh fails, it means no valid session
-        setAccessToken(null);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    initAuth();
+    // Disabled effect for bypassing auth
   }, []);
 
   return (

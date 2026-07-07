@@ -26,13 +26,16 @@ class PrivacyEngine:
             logger.warning(f"Haar cascade not found at {cascade_path}. Falling back to default distribution.")
             cascade_path = cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
             
-        self.face_cascade = cv2.CascadeClassifier(cascade_path)
-        
-        if self.face_cascade.empty():
-            logger.error("Failed to load Haar cascade classifier. Privacy mode will be disabled.")
+        try:
+            self.face_cascade = getattr(cv2, 'CascadeClassifier')(cascade_path)
+            if self.face_cascade.empty():
+                logger.error("Failed to load Haar cascade classifier. Privacy mode will be disabled.")
+                self._is_ready = False
+            else:
+                self._is_ready = True
+        except AttributeError:
+            logger.error("OpenCV was built without CascadeClassifier support. Privacy mode disabled.")
             self._is_ready = False
-        else:
-            self._is_ready = True
 
     def apply_privacy(self, frame: np.ndarray) -> np.ndarray:
         """

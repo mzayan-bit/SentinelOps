@@ -58,8 +58,9 @@ def test_get_active_model_none():
     assert response.json()["detail"] == "No active model found in the registry."
 
 def test_get_active_model():
+    from schemas.model_registry import Environment
     model_registry_service.register_model(RegisteredModel(
-        name="test", version="1", path="p.pt", active=True
+        name="test", version="1", path="p.pt", active=True, environment=Environment.PRODUCTION
     ))
     response = client.get("/api/models/active")
     assert response.status_code == 200

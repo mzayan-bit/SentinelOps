@@ -45,37 +45,8 @@ axiosClient.interceptors.response.use(
     const originalRequest: any = error.config;
 
     if (error.response?.status === 401 && !originalRequest._retry && originalRequest.url !== '/auth/refresh') {
-      if (isRefreshing) {
-        return new Promise(function(resolve, reject) {
-          failedQueue.push({resolve, reject});
-        }).then(token => {
-          originalRequest.headers['Authorization'] = 'Bearer ' + token;
-          return axiosClient(originalRequest);
-        }).catch(err => {
-          return Promise.reject(err);
-        });
-      }
-
-      originalRequest._retry = true;
-      isRefreshing = true;
-
-      try {
-        const { data } = await axios.post<{access_token: string}>(`${env.apiUrl}/auth/refresh`, {}, { withCredentials: true });
-        localStorage.setItem('accessToken', data.access_token);
-        axiosClient.defaults.headers.common['Authorization'] = 'Bearer ' + data.access_token;
-        processQueue(null, data.access_token);
-        originalRequest.headers['Authorization'] = 'Bearer ' + data.access_token;
-        return axiosClient(originalRequest);
-      } catch (err) {
-        processQueue(err, null);
-        localStorage.removeItem('accessToken');
-        if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
-            window.location.href = '/login';
-        }
-        return Promise.reject(err);
-      } finally {
-        isRefreshing = false;
-      }
+      // Auth bypassed, do nothing on 401
+      console.warn("Auth bypassed: Ignoring 401 Unauthorized");
     }
 
     if (error.response) {

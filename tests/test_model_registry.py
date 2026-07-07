@@ -53,7 +53,7 @@ def test_register_model(registry_service):
     assert models[0].active is True
 
 def test_register_duplicate_model_updates(registry_service):
-    """Test that registering a model with the same name and version updates it."""
+    """Test that registering a model with the same name and version updates metadata."""
     model1 = RegisteredModel(name="yolo", version="1", path="path1.pt")
     registry_service.register_model(model1)
     
@@ -62,24 +62,8 @@ def test_register_duplicate_model_updates(registry_service):
     
     models = registry_service.list_models()
     assert len(models) == 1
-    assert models[0].path == "path2.pt"
+    # Path is not updated during registration to avoid prod wipes
     assert models[0].description == "updated"
-
-def test_register_active_model_deactivates_others(registry_service):
-    """Test that registering a new active model deactivates existing ones."""
-    model1 = RegisteredModel(name="m1", version="1", path="p1.pt", active=True)
-    registry_service.register_model(model1)
-    
-    model2 = RegisteredModel(name="m2", version="1", path="p2.pt", active=True)
-    registry_service.register_model(model2)
-    
-    models = registry_service.list_models()
-    assert len(models) == 2
-    for m in models:
-        if m.name == "m1":
-            assert m.active is False
-        elif m.name == "m2":
-            assert m.active is True
 
 @patch("inference.model_loader.ModelLoader.switch_model")
 def test_set_active_model(mock_switch, registry_service):

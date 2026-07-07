@@ -1,22 +1,25 @@
 import pytest
+import os
 
 @pytest.fixture(autouse=True)
 def _disable_auth_for_tests():
     """
-    Globally disable API key authentication for all existing tests.
-    
-    Since we introduced RBAC late, we don't want to break the 98 existing
-    tests that don't send X-API-Key headers. This fixture mocks the auth
-    check globally to allow all tests to pass.
-    
-    Tests in `test_rbac.py` will explicitly re-enable auth to test it.
+    Globally disable API key/JWT authentication for all existing tests.
     """
-    import os
     os.environ["TESTING"] = "1"
     
-    from app.core.security import set_auth_enabled
+    from app.api.app import app
+    from app.core.security import get_current_user, Role
+    from app.db.models import UserModel, OrganizationModel
     
-    set_auth_enabled(False)
+    mock_org = OrganizationModel(id="org-1", name="Test Org")
+    mock_user = UserModel(id="1", email="test@test.com", role=Role.SUPER_ADMIN, is_active=True, organization=mock_org)
+    
+    async def mock_get_user():
+        return mock_user
+        
+    app.dependency_overrides[get_current_user] = mock_get_user
+    
     yield
-    # Restore true state after test (though it will just be disabled again next test)
-    set_auth_enabled(True)
+    
+    app.dependency_overrides = {}
