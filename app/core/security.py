@@ -57,12 +57,20 @@ async def get_current_user(
     request: Request,
     db: AsyncSession = Depends(get_db)
 ) -> UserModel:
-    # Auth Bypassed for local development
-    result = await db.execute(select(UserModel).where(UserModel.email == 'admin@sentinelops.ai').options(selectinload(UserModel.organization)))
+    token = get_token_from_request(request)
+    payload = verify_token(token)
+    user_id = payload.get("sub")
+    if not user_id:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload")
+        
+    result = await db.execute(select(UserModel).where(UserModel.id == user_id).options(selectinload(UserModel.organization)))
     user = result.scalar_one_or_none()
     
     if user is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Mock admin user not found in DB")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+        
+    if not user.is_active:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Inactive user")
         
     return user
 
