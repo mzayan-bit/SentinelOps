@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import logging
 import time
+import threading
 from pathlib import Path
 from typing import Any
 
@@ -50,16 +51,16 @@ class PredictionService:
         Image size passed to the model (pixels).
     """
 
+    _inference_lock = threading.Lock()
+
     def __init__(
         self,
         confidence: float = DEFAULT_CONFIDENCE,
         input_size: int = DEFAULT_INPUT_SIZE,
     ) -> None:
-        import threading
         self._loader = ModelLoader()
         self._default_conf = confidence
         self._input_size = input_size
-        self._inference_lock = threading.Lock()
 
     # ------------------------------------------------------------------
     # Public API

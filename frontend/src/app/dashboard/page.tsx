@@ -278,7 +278,7 @@ export default function DashboardPage() {
                   </TableRow>
                 ) : (
                   recentAlerts.map((alert) => (
-                    <TableRow key={alert.id}>
+                    <TableRow key={alert.alert_id || alert.id}>
                       <TableCell className="font-mono text-xs">
                         {format(new Date(alert.timestamp), "MMM d, HH:mm:ss")}
                       </TableCell>

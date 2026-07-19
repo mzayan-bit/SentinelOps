@@ -1,121 +1,172 @@
+"""
+SentinelOps — PPE Compliance Rules
+=====================================
+Business rules that detect missing PPE by cross-referencing tracked
+equipment detections.  The YOLO model produces two classes:
+
+    0: reflective_jacket
+    1: safety_helmet
+
+There is NO person class.  Instead, each detected PPE item implies a
+person at that location. A violation fires when one item is detected
+without the complementary item nearby (e.g., helmet found but no vest
+within spatial proximity → NO_VEST violation).
+"""
+
+import math
 from typing import Dict, Any
 from inference.rules.base_rule import BaseRule
 
-class HelmetRule(BaseRule):
-    @property
-    def name(self) -> str: return "NO_HELMET"
-    
-    @property
-    def priority(self) -> int: return 90
-    
-    @property
-    def severity(self) -> str: return "HIGH"
-    
-    @property
-    def cooldown_seconds(self) -> int: return 60
-    
-    @property
-    def escalation_level(self) -> int: return 1
-    
-    @property
-    def description(self) -> str: return "Person detected without a safety helmet."
-    
-    @property
-    def recommendation(self) -> str: return "Ensure all personnel in active zones wear hard hats."
 
-    def evaluate(self, track: Dict[str, Any], context: 'PipelineContext') -> float:
-        # Check if the tracked object is a person
-        if track.get("class_name") != "person":
-            return 0.0
-            
-        # The YOLO detection metadata might contain nested PPE info if it's a composite model
-        # Or we check overlapping bounding boxes of class 'helmet' from context.detections
-        # For this logic, we'll assume context.detections has 'helmet' boxes, and we check if any overlap this track
-        person_bbox = track["bbox"]
-        
-        for det in context.detections:
-            if det["class_name"] == "helmet":
-                h_bbox = det["bounding_box"]
-                h_rect = (h_bbox["x_min"], h_bbox["y_min"], h_bbox["x_max"], h_bbox["y_max"])
-                
-                # Check for intersection. If helmet is inside or overlaps upper half of person
-                if self._overlaps(person_bbox, h_rect):
-                    return 0.0 # Safe! Helmet found.
-                    
-        # No helmet found, violation!
-        return track.get("confidence", 0.7) # Return the confidence of the person detection
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+def _bbox_center(bbox: dict) -> tuple[float, float]:
+    """Return (cx, cy) from a bounding_box dict."""
+    return (
+        (bbox["x_min"] + bbox["x_max"]) / 2,
+        (bbox["y_min"] + bbox["y_max"]) / 2,
+    )
 
-    def _overlaps(self, person_bbox, item_bbox):
-        # A simple bounding box overlap check
-        px1, py1, px2, py2 = person_bbox
-        ix1, iy1, ix2, iy2 = item_bbox
-        
-        # Check if item is roughly in the upper area of the person
-        if iy2 > py1 + (py2 - py1) * 0.5:
-            return False
-            
-        xx1 = max(px1, ix1)
-        yy1 = max(py1, iy1)
-        xx2 = min(px2, ix2)
-        yy2 = min(py2, iy2)
-        
-        w = max(0, xx2 - xx1)
-        h = max(0, yy2 - yy1)
-        
-        if w * h > 0:
+
+def _bbox_height(bbox: dict) -> float:
+    return bbox["y_max"] - bbox["y_min"]
+
+
+def _has_nearby_class(
+    anchor_bbox: tuple,
+    target_class: str,
+    detections: list,
+    max_distance_factor: float = 3.0,
+    anchor_height: float = 50.0,
+) -> bool:
+    """Check if *any* detection of `target_class` is spatially close to `anchor_bbox`."""
+    ax, ay = anchor_bbox
+    for det in detections:
+        if det["class_name"] != target_class:
+            continue
+        bx, by = _bbox_center(det["bounding_box"])
+        dist = math.hypot(ax - bx, ay - by)
+        # Allow distance up to N× the anchor height (adaptive threshold)
+        if dist < anchor_height * max_distance_factor:
             return True
-        return False
+    return False
 
-class VestRule(BaseRule):
-    @property
-    def name(self) -> str: return "NO_VEST"
-    
-    @property
-    def priority(self) -> int: return 80
-    
-    @property
-    def severity(self) -> str: return "MEDIUM"
-    
-    @property
-    def cooldown_seconds(self) -> int: return 60
-    
-    @property
-    def escalation_level(self) -> int: return 0
-    
-    @property
-    def description(self) -> str: return "Person detected without a high-visibility vest."
-    
-    @property
-    def recommendation(self) -> str: return "Verify high-visibility vests are worn on the floor."
 
-    def evaluate(self, track: Dict[str, Any], context: 'PipelineContext') -> float:
-        if track.get("class_name") != "person":
+# ---------------------------------------------------------------------------
+# Rules
+# ---------------------------------------------------------------------------
+class HelmetRule(BaseRule):
+    """Fires when a vest (reflective_jacket) is detected but NO safety_helmet
+    is found nearby — indicating a worker without a hard hat."""
+
+    @property
+    def name(self) -> str:
+        return "NO_HELMET"
+
+    @property
+    def priority(self) -> int:
+        return 90
+
+    @property
+    def severity(self) -> str:
+        return "HIGH"
+
+    @property
+    def cooldown_seconds(self) -> int:
+        return 30
+
+    @property
+    def escalation_level(self) -> int:
+        return 1
+
+    @property
+    def description(self) -> str:
+        return "Worker detected wearing a vest but missing a safety helmet."
+
+    @property
+    def recommendation(self) -> str:
+        return "Ensure all personnel in active zones wear hard hats."
+
+    def evaluate(self, track: Dict[str, Any], context: "PipelineContext") -> float:
+        # Only evaluate tracks that are vests (i.e., we see a vest → is there a helmet?)
+        if track.get("class_name") != "reflective_jacket":
             return 0.0
-            
-        person_bbox = track["bbox"]
-        
-        for det in context.detections:
-            if det["class_name"] == "vest":
-                v_bbox = det["bounding_box"]
-                v_rect = (v_bbox["x_min"], v_bbox["y_min"], v_bbox["x_max"], v_bbox["y_max"])
-                
-                if self._overlaps(person_bbox, v_rect):
-                    return 0.0 # Safe!
-                    
+
+        bbox = track["bbox"]  # [x1, y1, x2, y2] from tracker
+        cx = (bbox[0] + bbox[2]) / 2
+        cy = (bbox[1] + bbox[3]) / 2
+        height = bbox[3] - bbox[1]
+
+        # Look for a safety_helmet above / near this vest
+        has_helmet = _has_nearby_class(
+            anchor_bbox=(cx, cy),
+            target_class="safety_helmet",
+            detections=context.detections,
+            max_distance_factor=2.5,
+            anchor_height=max(height, 40),
+        )
+
+        if has_helmet:
+            return 0.0  # Compliant — has both vest and helmet
+
+        # Violation: vest without helmet
         return track.get("confidence", 0.7)
 
-    def _overlaps(self, person_bbox, item_bbox):
-        px1, py1, px2, py2 = person_bbox
-        ix1, iy1, ix2, iy2 = item_bbox
-        
-        xx1 = max(px1, ix1)
-        yy1 = max(py1, iy1)
-        xx2 = min(px2, ix2)
-        yy2 = min(py2, iy2)
-        
-        w = max(0, xx2 - xx1)
-        h = max(0, yy2 - yy1)
-        
-        if w * h > 0:
-            return True
-        return False
+
+class VestRule(BaseRule):
+    """Fires when a safety_helmet is detected but NO reflective_jacket
+    is found nearby — indicating a worker without a vest."""
+
+    @property
+    def name(self) -> str:
+        return "NO_VEST"
+
+    @property
+    def priority(self) -> int:
+        return 80
+
+    @property
+    def severity(self) -> str:
+        return "MEDIUM"
+
+    @property
+    def cooldown_seconds(self) -> int:
+        return 30
+
+    @property
+    def escalation_level(self) -> int:
+        return 0
+
+    @property
+    def description(self) -> str:
+        return "Worker detected wearing a helmet but missing a high-visibility vest."
+
+    @property
+    def recommendation(self) -> str:
+        return "Verify high-visibility vests are worn on the floor."
+
+    def evaluate(self, track: Dict[str, Any], context: "PipelineContext") -> float:
+        # Only evaluate tracks that are helmets
+        if track.get("class_name") != "safety_helmet":
+            return 0.0
+
+        bbox = track["bbox"]  # [x1, y1, x2, y2] from tracker
+        cx = (bbox[0] + bbox[2]) / 2
+        cy = (bbox[1] + bbox[3]) / 2
+        height = bbox[3] - bbox[1]
+
+        # Look for a reflective_jacket below / near this helmet
+        has_vest = _has_nearby_class(
+            anchor_bbox=(cx, cy),
+            target_class="reflective_jacket",
+            detections=context.detections,
+            max_distance_factor=3.0,
+            anchor_height=max(height, 40),
+        )
+
+        if has_vest:
+            return 0.0  # Compliant
+
+        # Violation: helmet without vest
+        return track.get("confidence", 0.7)

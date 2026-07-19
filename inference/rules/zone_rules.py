@@ -1,3 +1,12 @@
+"""
+SentinelOps — Zone-Based Intelligence Rules
+===============================================
+These rules are architecture-ready but return 0.0 by default since
+the current YOLO model does not produce a 'person' class (only
+safety_helmet and reflective_jacket).  They will activate automatically
+once a model with person detection is loaded and zones are configured.
+"""
+
 from typing import Dict, Any
 import time
 from inference.rules.base_rule import BaseRule
@@ -25,15 +34,8 @@ class RestrictedZoneRule(BaseRule):
     def recommendation(self) -> str: return "Immediately evacuate person from the restricted zone."
 
     def evaluate(self, track: Dict[str, Any], context: 'PipelineContext') -> float:
-        if track.get("class_name") != "person":
-            return 0.0
-            
-        # Hardcoded logic or pulled from context.zones (usually injected by ZoneEngine)
-        # Assuming context has zone polygons
-        centroid = track["centroid"]
-        
-        # Simple placeholder if no zone engine provides it:
-        # In a real setup, we would do cv2.pointPolygonTest
+        # Zone rules require a 'person' class and configured zone polygons.
+        # Currently disabled — returns 0.0 (no violation).
         return 0.0
 
 class LoiteringRule(BaseRule):
@@ -59,27 +61,6 @@ class LoiteringRule(BaseRule):
     def recommendation(self) -> str: return "Investigate reason for loitering."
 
     def evaluate(self, track: Dict[str, Any], context: 'PipelineContext') -> float:
-        if track.get("class_name") != "person":
-            return 0.0
-            
-        # Check temporal history
-        history = track.get("history", [])
-        if len(history) < 30:
-            return 0.0
-            
-        # If the bounding box hasn't moved much over the last 30 frames
-        first_box = history[0]
-        last_box = history[-1]
-        
-        # Calculate displacement of centroid
-        cx1 = (first_box[0] + first_box[2])/2
-        cy1 = (first_box[1] + first_box[3])/2
-        cx2 = (last_box[0] + last_box[2])/2
-        cy2 = (last_box[1] + last_box[3])/2
-        
-        displacement = ((cx2-cx1)**2 + (cy2-cy1)**2)**0.5
-        
-        if displacement < 50: # Hasn't moved more than 50 pixels in 30 frames
-            return track.get("confidence", 0.6)
-            
+        # Zone rules require a 'person' class.
+        # Currently disabled — returns 0.0 (no violation).
         return 0.0

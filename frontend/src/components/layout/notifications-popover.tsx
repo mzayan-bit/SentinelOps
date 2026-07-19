@@ -55,7 +55,7 @@ export function NotificationsPopover() {
             ) : (
               <ul className="divide-y divide-border">
                 {alerts.map((alert) => (
-                  <li key={alert.id} className="p-4 hover:bg-surface transition-colors cursor-pointer">
+                  <li key={alert.alert_id || alert.id} className="p-4 hover:bg-surface transition-colors cursor-pointer">
                     <div className="flex gap-3">
                       <div className="mt-0.5 shrink-0">
                         {alert.severity === "CRITICAL" ? (

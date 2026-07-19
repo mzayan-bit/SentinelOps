@@ -2,9 +2,10 @@
 
 import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
-import { Menu, Shield, Sun, Moon } from "lucide-react";
+import { Menu, Shield, Sun, Moon, Activity } from "lucide-react";
 import { navItems, APP_NAME } from "@/config/navigation";
 import Link from "next/link";
+import clsx from "clsx";
 
 import { NotificationsPopover } from "./notifications-popover";
 import { UserDropdown } from "./user-dropdown";
@@ -19,7 +20,7 @@ function getPageTitle(pathname: string): string {
       return item.label;
     }
   }
-  return "Home";
+  return "Commander Dashboard";
 }
 
 export function Topbar({ onMenuToggle }: TopbarProps) {
@@ -28,12 +29,12 @@ export function Topbar({ onMenuToggle }: TopbarProps) {
   const { theme, setTheme } = useTheme();
 
   return (
-    <header className="border-border bg-topbar-bg sticky top-0 z-30 flex h-16 items-center border-b backdrop-blur-xl">
+    <header className="glass-1 sticky top-4 z-30 mx-4 mb-4 mt-4 flex h-16 items-center rounded backdrop-blur-xl">
       <div className="flex w-full items-center gap-4 px-4 lg:px-6">
         {/* Mobile menu button */}
         <button
           onClick={onMenuToggle}
-          className="text-muted hover:bg-surface hover:text-foreground flex h-9 w-9 items-center justify-center rounded-lg transition-colors lg:hidden"
+          className="text-muted hover:bg-sidebar-hover hover:text-accent border border-transparent hover:border-accent/30 flex h-9 w-9 items-center justify-center rounded transition-all lg:hidden"
           aria-label="Toggle navigation menu"
         >
           <Menu className="h-5 w-5" />
@@ -41,18 +42,21 @@ export function Topbar({ onMenuToggle }: TopbarProps) {
 
         {/* Application Logo (Visible on mobile or if needed) */}
         <Link href="/" className="flex items-center gap-2 lg:hidden">
-          <div className="bg-accent-muted text-accent flex h-8 w-8 items-center justify-center rounded-lg">
-            <Shield className="h-4.5 w-4.5" />
+          <div className="bg-accent-muted text-accent flex h-8 w-8 items-center justify-center rounded border border-accent/20">
+            <Shield className="h-4 w-4" />
           </div>
-          <span className="text-foreground text-sm font-semibold tracking-tight">{APP_NAME}</span>
+          <span className="text-foreground text-xs font-mono font-bold tracking-widest uppercase">{APP_NAME}</span>
         </Link>
 
-        {/* Divider for mobile */}
-        <div className="bg-border mx-2 hidden h-6 w-px lg:mx-0 lg:block" />
+        {/* Decorative Divider */}
+        <div className="bg-border-subtle mx-2 hidden h-8 w-[2px] lg:mx-0 lg:block" />
 
         {/* Page title */}
         <div className="flex hidden flex-col sm:flex">
-          <h1 className="text-foreground text-base font-semibold">{pageTitle}</h1>
+          <h1 className="text-foreground text-sm font-bold tracking-wider uppercase flex items-center gap-2">
+            <Activity className="h-4 w-4 text-accent animate-pulse-glow" />
+            {pageTitle}
+          </h1>
         </div>
 
         {/* Spacer */}
@@ -63,16 +67,16 @@ export function Topbar({ onMenuToggle }: TopbarProps) {
           {/* Theme Toggle */}
           <button
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-            className="text-muted hover:bg-surface hover:text-foreground flex h-9 w-9 items-center justify-center rounded-lg transition-colors"
+            className="text-muted hover:bg-sidebar-hover hover:text-accent border border-transparent hover:border-accent/30 flex h-9 w-9 items-center justify-center rounded transition-all"
             aria-label="Toggle theme"
           >
-            <Moon className="hidden h-5 w-5 dark:block" />
-            <Sun className="block h-5 w-5 dark:hidden" />
+            <Moon className="hidden h-4 w-4 dark:block" />
+            <Sun className="block h-4 w-4 dark:hidden" />
           </button>
 
           <NotificationsPopover />
 
-          <div className="bg-border h-6 w-px" />
+          <div className="bg-border-subtle h-6 w-[2px]" />
 
           <UserDropdown />
         </div>

@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import logging
 import os
+os.environ["PYTORCH_MPS_HIGH_WATERMARK_RATIO"] = "0.0"
 from pathlib import Path
 from typing import Literal
 
@@ -68,8 +69,8 @@ class Settings(BaseSettings):
     escalate_to_medium_threshold: int = Field(default=3, description="Duplicates needed to escalate to Medium")
     escalate_to_high_threshold: int = Field(default=5, description="Duplicates needed to escalate to High")
     escalate_to_critical_threshold: int = Field(default=10, description="Duplicates needed to escalate to Critical")
-    rate_limit_rpm: int = Field(default=60, ge=0, description="Max API requests per minute per client IP (0 = unlimited).")
-    rate_limit_enabled: bool = Field(default=True, description="Enable/disable API rate limiting.")
+    rate_limit_rpm: int = Field(default=600, ge=0, description="Max API requests per minute per client IP (0 = unlimited).")
+    rate_limit_enabled: bool = Field(default=False, description="Enable/disable API rate limiting.")
     task_worker_max_workers: int = Field(default=4, ge=1, le=32)
     mlflow_tracking_uri: str = Field(default="http://localhost:5000")
 

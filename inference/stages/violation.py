@@ -15,7 +15,7 @@ class LifecycleState(Enum):
     EXPIRED = "EXPIRED"
 
 class ViolationManager:
-    def __init__(self, persistent_threshold_seconds=2.0):
+    def __init__(self, persistent_threshold_seconds=1.0):
         self.rules = [HelmetRule(), VestRule(), RestrictedZoneRule(), LoiteringRule()]
         self.persistent_threshold = persistent_threshold_seconds
         

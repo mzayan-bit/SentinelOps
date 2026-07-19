@@ -40,6 +40,8 @@ logger = get_logger(__name__)
 DEFAULT_CONFIDENCE: float = 0.25
 DEFAULT_TRACKER: str = "bytetrack.yaml"
 
+# Global lock for the underlying YOLO model to prevent parallel tracking crashes
+_tracker_lock = threading.Lock()
 
 class VideoTracker:
     def __init__(self, confidence: float = DEFAULT_CONFIDENCE) -> None:
@@ -129,13 +131,17 @@ class VideoTracker:
                 if frame_count == 1:
                     heatmap_generator = HeatmapGenerator(width, height, background_frame=frame)
 
-                results = model.track(
-                    frame,
-                    persist=True,
-                    tracker=tracker_type,
-                    conf=self._confidence,
-                    verbose=False,
-                )
+                with _tracker_lock:
+                    if hasattr(model, "model") and model.model is not None:
+                        results = model.model.track(
+                            frame,
+                            persist=True,
+                            tracker=tracker_type,
+                            conf=self._confidence,
+                            verbose=False,
+                        )
+                    else:
+                        raise RuntimeError("Backend does not expose a compatible model for tracking.")
                 
                 annotated_frame = frame
                 current_violations = 0

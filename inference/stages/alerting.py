@@ -48,11 +48,25 @@ class AlertingStage(PipelineStage):
                     elif pv["severity"] == "MEDIUM":
                         highest_sev = SeverityLevel.MEDIUM
             
+            # Build a human-readable description for the incident
+            rule_descriptions = {
+                "NO_HELMET": "Missing safety helmet",
+                "NO_VEST": "Missing high-visibility vest",
+                "RESTRICTED_ZONE": "Unauthorized restricted zone entry",
+                "LOITERING": "Loitering detected",
+            }
+            descriptions = []
+            for pv in persistent_violations:
+                desc = rule_descriptions.get(pv["rule_name"], pv["rule_name"])
+                descriptions.append(f"{desc} (Track #{pv['track_id']}, conf={pv['confidence']:.0%})")
+            
+            human_summary = "; ".join(descriptions)
+            
             # Log the incident in the DB / timeline
             incident = IncidentCreate(
                 camera_id=context.camera_id,
                 severity=highest_sev,
-                description=f"Automated AI Alert: {summary}"
+                description=f"{human_summary}"
             )
             incident_service.log_incident(incident)
             

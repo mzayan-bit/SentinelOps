@@ -81,14 +81,6 @@ register_error_handlers(app)
 
 app.add_middleware(RequestContextMiddleware)
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.cors_allow_origins,
-    allow_credentials=settings.cors_allow_credentials,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
 from app.middleware.rate_limiter import RateLimiter
 from app.middleware.security_headers import SecurityHeadersMiddleware
 
@@ -98,6 +90,14 @@ app.add_middleware(
     RateLimiter,
     requests_per_minute=settings.rate_limit_rpm,
     enabled=settings.rate_limit_enabled and os.getenv("TESTING") != "1",
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_allow_origins,
+    allow_credentials=settings.cors_allow_credentials,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 app.include_router(alert_router)
